@@ -58,6 +58,19 @@ FreshMart is a full-featured cross-platform mobile grocery ecommerce application
 - Product wishlist toggle
 - Coupon validation with min order and max discount
 
+### 10. Push Notifications
+- Expo Push Notification service integration (uses FCM on Android)
+- Auto-notification on order placed & order status changes
+- In-app notification center with read/unread tracking
+- Admin broadcast to all users
+- Push token registration per device
+
+### 11. Admin Product Image Uploads
+- Image picker (gallery + camera) via expo-image-picker
+- Base64 image storage in MongoDB
+- Image serving endpoint with proper content-type
+- Full admin product CRUD with image management
+
 ## Tech Stack
 - **Frontend**: Expo SDK 54, React Native, expo-router
 - **Backend**: FastAPI, Python 3.11
