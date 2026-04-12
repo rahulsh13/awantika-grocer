@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES } from '../src/constants/theme';
-import { apiGet, apiPut } from '../src/utils/api';
+import { apiGet, apiPut, apiPost } from '../src/utils/api';
 import { useAuth } from '../src/context/AuthContext';
 
 export default function AdminScreen() {
@@ -63,6 +63,33 @@ export default function AdminScreen() {
               <StatCard label="Products" value={dashboard.total_products || 0} icon="cube" color="#8B5CF6" />
               <StatCard label="Customers" value={dashboard.total_users || 0} icon="people" color="#F59E0B" />
             </View>
+
+            <TouchableOpacity testID="manage-products-btn" style={styles.actionCard} onPress={() => router.push('/admin-products')}>
+              <View style={[styles.actionIcon, { backgroundColor: '#8B5CF620' }]}>
+                <Ionicons name="cube-outline" size={24} color="#8B5CF6" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.actionTitle}>Manage Products</Text>
+                <Text style={styles.actionDesc}>Add, edit, delete products with image upload</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity testID="broadcast-notif-btn" style={styles.actionCard} onPress={() => {
+              Alert.prompt ? Alert.prompt('Broadcast', 'Enter message', (msg: string) => {
+                if (msg) apiPost('/admin/notifications/broadcast', { title: 'FreshMart Update', body: msg }).then(() => Alert.alert('Sent!'));
+              }) : Alert.alert('Broadcast', 'Use the API to send broadcast notifications');
+            }}>
+              <View style={[styles.actionIcon, { backgroundColor: '#F59E0B20' }]}>
+                <Ionicons name="megaphone-outline" size={24} color="#F59E0B" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.actionTitle}>Send Notification</Text>
+                <Text style={styles.actionDesc}>Broadcast promo to all users</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Pending Orders: {dashboard.pending_orders || 0}</Text>
             </View>
@@ -112,6 +139,10 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary },
   section: { marginBottom: SPACING.xl },
   sectionTitle: { fontSize: FONT_SIZES.lg, fontWeight: '700', color: COLORS.textPrimary },
+  actionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.md, padding: SPACING.lg, borderWidth: 1, borderColor: COLORS.border, marginBottom: SPACING.md, gap: SPACING.md },
+  actionIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  actionTitle: { fontSize: FONT_SIZES.md, fontWeight: '700', color: COLORS.textPrimary },
+  actionDesc: { fontSize: FONT_SIZES.xs, color: COLORS.textSecondary },
   orderCard: { backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.md, padding: SPACING.lg, borderWidth: 1, borderColor: COLORS.border, marginBottom: SPACING.md },
   orderHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: SPACING.xs },
   orderId: { fontWeight: '700', color: COLORS.textPrimary },

@@ -114,6 +114,18 @@ class ProfileUpdate(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
 
+class PushTokenRegister(BaseModel):
+    push_token: str
+
+class SendNotification(BaseModel):
+    user_id: str
+    title: str
+    body: str
+
+class ImageUpload(BaseModel):
+    image_data: str  # base64 encoded image
+    filename: str = ""
+
 # ===== AUTH HELPERS =====
 def hash_password(password: str) -> str:
     salt = bcrypt.gensalt()
@@ -518,6 +530,14 @@ async def create_order(data: OrderCreate, request: Request):
         await db.products.update_one({"product_id": item["product_id"]}, {"$inc": {"stock": -item["quantity"]}})
     await db.carts.delete_one({"user_id": user["user_id"]})
     order_doc.pop("_id", None)
+    # Send push notification for new order
+    await create_notification(
+        user["user_id"],
+        "Order Placed!",
+        f"Your order #{order_id[-8:]} for ${total:.2f} has been placed successfully.",
+        "order",
+        {"order_id": order_id}
+    )
     return order_doc
 
 @api_router.get("/orders")
@@ -733,9 +753,20 @@ async def admin_get_orders(request: Request, status: str = None):
 @api_router.put("/admin/orders/{order_id}/status")
 async def admin_update_order_status(order_id: str, data: StatusUpdate, request: Request):
     await get_admin_user(request)
+    order = await db.orders.find_one({"order_id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
     result = await db.orders.update_one({"order_id": order_id}, {"$set": {"status": data.status}})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Order not found")
+    # Send notification on status change
+    status_messages = {
+        "confirmed": f"Your order #{order_id[-8:]} has been confirmed!",
+        "delivered": f"Your order #{order_id[-8:]} has been delivered. Enjoy!",
+        "cancelled": f"Your order #{order_id[-8:]} has been cancelled.",
+    }
+    msg = status_messages.get(data.status, f"Your order #{order_id[-8:]} status: {data.status}")
+    await create_notification(order["user_id"], f"Order {data.status.title()}", msg, "order", {"order_id": order_id})
     return {"message": "Order status updated"}
 
 @api_router.get("/admin/dashboard")
@@ -766,6 +797,125 @@ async def admin_create_coupon(request: Request):
     await db.coupons.insert_one(coupon_doc)
     coupon_doc.pop("_id", None)
     return coupon_doc
+
+# ===== PUSH NOTIFICATION ROUTES =====
+@api_router.post("/notifications/register-token")
+async def register_push_token(data: PushTokenRegister, request: Request):
+    user = await get_current_user(request)
+    await db.push_tokens.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {"user_id": user["user_id"], "push_token": data.push_token, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True
+    )
+    return {"message": "Push token registered"}
+
+@api_router.get("/notifications")
+async def get_notifications(request: Request):
+    user = await get_current_user(request)
+    notifs = await db.notifications.find({"user_id": user["user_id"]}, {"_id": 0}).sort("created_at", -1).limit(50).to_list(50)
+    return {"notifications": notifs}
+
+@api_router.put("/notifications/read-all")
+async def mark_all_notifications_read(request: Request):
+    user = await get_current_user(request)
+    await db.notifications.update_many({"user_id": user["user_id"], "read": False}, {"$set": {"read": True}})
+    return {"message": "All notifications marked as read"}
+
+@api_router.get("/notifications/unread-count")
+async def get_unread_count(request: Request):
+    user = await get_current_user(request)
+    count = await db.notifications.count_documents({"user_id": user["user_id"], "read": False})
+    return {"count": count}
+
+async def create_notification(user_id: str, title: str, body: str, notif_type: str = "general", data: dict = None):
+    """Create an in-app notification and attempt push"""
+    notif_doc = {
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "user_id": user_id,
+        "title": title,
+        "body": body,
+        "type": notif_type,
+        "data": data or {},
+        "read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.notifications.insert_one(notif_doc)
+    # Try sending push notification via Expo Push API
+    token_doc = await db.push_tokens.find_one({"user_id": user_id}, {"_id": 0})
+    if token_doc and token_doc.get("push_token"):
+        try:
+            async with httpx.AsyncClient() as http_client:
+                await http_client.post(
+                    "https://exp.host/--/api/v2/push/send",
+                    json={
+                        "to": token_doc["push_token"],
+                        "title": title,
+                        "body": body,
+                        "data": data or {},
+                        "sound": "default",
+                    },
+                    headers={"Content-Type": "application/json"}
+                )
+        except Exception as e:
+            logger.warning(f"Push notification failed for {user_id}: {e}")
+    return notif_doc
+
+# Admin: Send notification to a user
+@api_router.post("/admin/notifications/send")
+async def admin_send_notification(data: SendNotification, request: Request):
+    await get_admin_user(request)
+    notif = await create_notification(data.user_id, data.title, data.body, "admin")
+    notif.pop("_id", None)
+    return notif
+
+# Admin: Broadcast notification to all users
+@api_router.post("/admin/notifications/broadcast")
+async def admin_broadcast_notification(request: Request):
+    admin = await get_admin_user(request)
+    body = await request.json()
+    title = body.get("title", "")
+    msg = body.get("body", "")
+    if not title or not msg:
+        raise HTTPException(status_code=400, detail="Title and body required")
+    users = await db.users.find({}, {"_id": 0, "user_id": 1}).to_list(1000)
+    count = 0
+    for u in users:
+        await create_notification(u["user_id"], title, msg, "promo")
+        count += 1
+    return {"message": f"Sent to {count} users"}
+
+# ===== IMAGE UPLOAD ROUTES =====
+@api_router.post("/upload/image")
+async def upload_image(data: ImageUpload, request: Request):
+    await get_admin_user(request)
+    image_id = f"img_{uuid.uuid4().hex[:12]}"
+    img_doc = {
+        "image_id": image_id,
+        "image_data": data.image_data,
+        "filename": data.filename or f"{image_id}.jpg",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.images.insert_one(img_doc)
+    return {"image_id": image_id, "url": f"/api/images/{image_id}"}
+
+@api_router.get("/images/{image_id}")
+async def get_image(image_id: str):
+    from fastapi.responses import Response
+    import base64
+    img = await db.images.find_one({"image_id": image_id}, {"_id": 0})
+    if not img:
+        raise HTTPException(status_code=404, detail="Image not found")
+    try:
+        raw = img["image_data"]
+        if "," in raw:
+            raw = raw.split(",", 1)[1]
+        img_bytes = base64.b64decode(raw)
+        content_type = "image/jpeg"
+        if img.get("filename", "").endswith(".png"):
+            content_type = "image/png"
+        return Response(content=img_bytes, media_type=content_type)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to decode image")
 
 # ===== PROFILE ROUTES =====
 @api_router.put("/profile")
@@ -902,6 +1052,10 @@ async def startup():
     await db.password_reset_tokens.create_index("expires_at", expireAfterSeconds=0)
     await db.payment_transactions.create_index("session_id")
     await db.wishlists.create_index("user_id", unique=True)
+    await db.push_tokens.create_index("user_id", unique=True)
+    await db.notifications.create_index("user_id")
+    await db.notifications.create_index([("user_id", 1), ("read", 1)])
+    await db.images.create_index("image_id", unique=True)
     await seed_data()
     logger.info("Application started successfully")
 
