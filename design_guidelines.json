@@ -1,0 +1,107 @@
+{
+  "identity": "E1: The Anti-AI Designer",
+  "project_context": {
+    "domain": "E-commerce Grocery Mobile App",
+    "theme": "Light",
+    "archetype": "Archetype 1 (Organic & Earthy)"
+  },
+  "design_principles": [
+    "Emotion First: The UI must feel fresh, tactile, and trustworthy.",
+    "Mobile-First App Layout: Thumb-zone optimized, bento grid for promos, bottom sticky nav.",
+    "Contrast & Texture: Use organic colors over clinical whites. 1px borders with soft shadows.",
+    "Negative Space: Generous padding around produce imagery to highlight freshness."
+  ],
+  "color_system": {
+    "description": "Warm, earthy base with high-contrast forest greens and energetic terracotta accents.",
+    "palette": {
+      "background": "#FCFAFC",
+      "surface": "#FFFFFF",
+      "primary": "#1E3F20",
+      "primary_foreground": "#FFFFFF",
+      "accent": "#E05236",
+      "accent_foreground": "#FFFFFF",
+      "muted": "#F3F1ED",
+      "border": "#E5E4E0",
+      "text_primary": "#0A0A0A",
+      "text_secondary": "#5C5C5A"
+    }
+  },
+  "typography": {
+    "heading_font": "Cabinet Grotesk",
+    "body_font": "Manrope",
+    "rules": [
+      "Headings must use tight tracking (tracking-tight) for a modern retail feel.",
+      "DO NOT use generic sans (Inter/Roboto) for headings.",
+      "Overlines/Labels must be uppercase, tiny, and wide spaced (tracking-widest)."
+    ]
+  },
+  "layout_and_spacing": {
+    "container": "If web-based, use max-w-md mx-auto relative overflow-hidden h-screen to mimic mobile. If React Native, use SafeAreaView with flex-1.",
+    "bento_grid": "Home screen banners should use a 2-column bento grid (e.g. 1 large span-2, 2 small span-1).",
+    "spacing_scale": "Use generous padding: p-4 to p-6 for screen edges. Gap-4 for product grids."
+  },
+  "components": {
+    "bottom_navigation": {
+      "style": "Fixed bottom, z-50, solid white or glassmorphism (bg-white/90 backdrop-blur-md), top border (border-t border-border).",
+      "interaction": "Active state uses primary color (Forest Green). Inactive is text-secondary."
+    },
+    "product_card": {
+      "style": "Rounded-2xl, border border-border/60, bg-surface, overflow-hidden.",
+      "image": "aspect-square or h-32 w-full object-cover, soft gray background.",
+      "content": "p-3, left-aligned title (font-medium text-sm), price (text-base font-bold text-primary).",
+      "action": "Add to cart button should be right-aligned pill or circular button (+ icon) in primary or accent color."
+    },
+    "search_bar": {
+      "style": "Rounded-full, bg-muted, border-none, h-12 px-4, left-aligned search icon."
+    },
+    "checkout_flow": {
+      "style": "Bottom sheets for cart summary. Large, sticky primary button at the bottom for 'Place Order'."
+    }
+  },
+  "icons_and_assets": {
+    "library": "lucide-react or @phosphor-icons/react",
+    "style": "Stroke width 1.5 or 2, consistent sizing (w-6 h-6 for nav)."
+  },
+  "image_urls": [
+    {
+      "category": "Hero Banner - Fresh Produce",
+      "url": "https://static.prod-images.emergentagent.com/jobs/c30e7a80-bfe7-46d9-a18b-3c37ff1d6fac/images/56996fdb23e701603d6c3865aad01bfb6505f8696ac977e25c08b82a558db56c.png",
+      "description": "Top-down view of fresh organic vegetables"
+    },
+    {
+      "category": "Hero Banner - Daily Essentials",
+      "url": "https://static.prod-images.emergentagent.com/jobs/c30e7a80-bfe7-46d9-a18b-3c37ff1d6fac/images/61899c63e1f73d14edea0bbb80962f9471a21a8075089b0d7d98f48ece4062f5.png",
+      "description": "Minimalist composition of milk, eggs, bread"
+    },
+    {
+      "category": "Category Icon - Premium Groceries",
+      "url": "https://static.prod-images.emergentagent.com/jobs/c30e7a80-bfe7-46d9-a18b-3c37ff1d6fac/images/c14de05ad70a08ab3afafd5b1fb63b8d828631d79126ee1406d197018fa85f6e.png",
+      "description": "Wicker basket of fresh groceries"
+    },
+    {
+      "category": "Category Icon - Cooking Oil",
+      "url": "https://static.prod-images.emergentagent.com/jobs/c30e7a80-bfe7-46d9-a18b-3c37ff1d6fac/images/78bd84bbf762e1c3a5018da6f6de44e47236ccc3e9b941aa94fb0b9c70c87c14.png",
+      "description": "Premium cooking oil bottle"
+    },
+    {
+      "category": "Product/Category Image - Fruits",
+      "url": "https://images.unsplash.com/photo-1755712691769-f013764f2d70?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzR8MHwxfHNlYXJjaHwyfHxmcmVzaCUyMG9yZ2FuaWMlMjB2ZWdldGFibGVzJTIwZnJ1aXRzJTIwZ3JvY2VyeSUyMHNob3BwaW5nfGVufDB8fHx8MTc3NjAxMjUxMnww&ixlib=rb-4.1.0&q=85",
+      "description": "Colorful assortment of fresh tropical fruits"
+    },
+    {
+      "category": "Product/Category Image - Vegetables",
+      "url": "https://images.unsplash.com/photo-1768751947412-d18d87d08f8e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzR8MHwxfHNlYXJjaHw0fHxmcmVzaCUyMG9yZ2FuaWMlMjB2ZWdldGFibGVzJTIwZnJ1aXRzJTIwZ3JvY2VyeSUyMHNob3BwaW5nfGVufDB8fHx8MTc3NjAxMjUxMnww&ixlib=rb-4.1.0&q=85",
+      "description": "Fresh produce in wooden crates"
+    }
+  ],
+  "instructions_to_main_agent": [
+    "CRITICAL: Add 'data-testid' to EVERY interactive element (buttons, nav links, cart items, checkout form).",
+    "If using React/Tailwind to mimic mobile, wrap the main layout in <div className='max-w-md mx-auto h-screen bg-background relative overflow-y-auto overflow-x-hidden shadow-2xl'>.",
+    "Ensure the bottom navigation is fixed at the bottom of the container, NOT the absolute window if restricted to max-w-md.",
+    "Implement a Bento Grid for the Home Screen hero section using CSS Grid (grid-cols-2).",
+    "Use Cabinet Grotesk for Headings and Manrope for body text. Load via Google Fonts or Fontsource.",
+    "NEVER use dummy placeholder images. Use the URLs provided in this JSON.",
+    "Use Lucide-React for all icons. Stroke-width 1.5.",
+    "Use Shadcn/UI primitives but heavily strip their Vercel-look borders/shadows to match the 'Organic & Earthy' theme (use rounded-2xl, soft bg colors)."
+  ]
+}
