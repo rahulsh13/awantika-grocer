@@ -54,7 +54,7 @@ export default function LoginScreen() {
             <View style={styles.logoWrap}>
               <Ionicons name="leaf" size={40} color={COLORS.primary} />
             </View>
-            <Text style={styles.title}>FreshMart</Text>
+            <Text style={styles.title}>AwantikaGrocers</Text>
             <Text style={styles.subtitle}>Fresh groceries delivered to your door</Text>
           </View>
 

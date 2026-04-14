@@ -49,7 +49,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
     // Android channel setup
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
-        name: 'FreshMart',
+        name: 'AwantikaGrocers',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#1E3F20',
