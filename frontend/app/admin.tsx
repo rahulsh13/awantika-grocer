@@ -77,7 +77,7 @@ export default function AdminScreen() {
 
             <TouchableOpacity testID="broadcast-notif-btn" style={styles.actionCard} onPress={() => {
               Alert.prompt ? Alert.prompt('Broadcast', 'Enter message', (msg: string) => {
-                if (msg) apiPost('/admin/notifications/broadcast', { title: 'AwantikaGrocers Update', body: msg }).then(() => Alert.alert('Sent!'));
+                if (msg) apiPost('/admin/notifications/broadcast', { title: 'Awantika Grocers Update', body: msg }).then(() => Alert.alert('Sent!'));
               }) : Alert.alert('Broadcast', 'Use the API to send broadcast notifications');
             }}>
               <View style={[styles.actionIcon, { backgroundColor: '#F59E0B20' }]}>

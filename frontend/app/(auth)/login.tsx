@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
@@ -52,9 +52,9 @@ export default function LoginScreen() {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <View style={styles.logoWrap}>
-              <Ionicons name="leaf" size={40} color={COLORS.primary} />
+              <Image source={{ uri: 'https://customer-assets.emergentagent.com/job_freshmart-mobile-1/artifacts/5ry3wzoh_Screenshot%202026-03-26%20093246.png' }} style={styles.logoImg} resizeMode="contain" />
             </View>
-            <Text style={styles.title}>AwantikaGrocers</Text>
+            <Text style={styles.title}>Awantika Grocers</Text>
             <Text style={styles.subtitle}>Fresh groceries delivered to your door</Text>
           </View>
 
@@ -109,7 +109,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { flexGrow: 1, padding: SPACING.xl },
   header: { alignItems: 'center', marginTop: 40, marginBottom: 40 },
-  logoWrap: { width: 72, height: 72, borderRadius: 36, backgroundColor: COLORS.muted, alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.md },
+  logoWrap: { width: 72, height: 72, borderRadius: 36, backgroundColor: COLORS.muted, alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.md, overflow: 'hidden' },
+  logoImg: { width: 72, height: 72 },
   title: { fontSize: FONT_SIZES.title, fontWeight: '800', color: COLORS.primary, letterSpacing: -1 },
   subtitle: { fontSize: FONT_SIZES.md, color: COLORS.textSecondary, marginTop: SPACING.xs },
   form: {},

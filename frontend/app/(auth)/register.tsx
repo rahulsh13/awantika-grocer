@@ -34,7 +34,7 @@ export default function RegisterScreen() {
             <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join AwantikaGrocers for fresh grocery delivery</Text>
+          <Text style={styles.subtitle}>Join Awantika Grocers for fresh grocery delivery</Text>
           <Text style={styles.label}>Full Name</Text>
           <View style={styles.inputWrap}>
             <Ionicons name="person-outline" size={20} color={COLORS.textSecondary} />
