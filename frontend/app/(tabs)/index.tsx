@@ -21,7 +21,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [bannerIdx, setBannerIdx] = useState(0);
   const router = useRouter();
-  const { addItem, refreshCart } = useCart();
+  const { addItem, refreshCart, getItemQuantity, updateQuantity, removeItem } = useCart();
   const { user } = useAuth();
 
   const fetchData = useCallback(async () => {
@@ -103,7 +103,17 @@ export default function HomeScreen() {
         <View style={styles.productGrid}>
           {featured.map((prod) => (
             <View key={prod.product_id} style={styles.productCol}>
-              <ProductCard product={prod} onPress={() => router.push(`/product/${prod.product_id}`)} onAddToCart={() => handleAddToCart(prod.product_id)} />
+              <ProductCard
+                product={prod}
+                onPress={() => router.push(`/product/${prod.product_id}`)}
+                cartQuantity={getItemQuantity(prod.product_id)}
+                onAddToCart={() => handleAddToCart(prod.product_id)}
+                onIncrement={async () => { try { await updateQuantity(prod.product_id, getItemQuantity(prod.product_id) + 1); } catch {} }}
+                onDecrement={async () => {
+                  const qty = getItemQuantity(prod.product_id);
+                  try { if (qty <= 1) { await removeItem(prod.product_id); } else { await updateQuantity(prod.product_id, qty - 1); } } catch {}
+                }}
+              />
             </View>
           ))}
         </View>

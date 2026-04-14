@@ -15,9 +15,12 @@ interface Props {
   };
   onPress: () => void;
   onAddToCart?: () => void;
+  onIncrement?: () => void;
+  onDecrement?: () => void;
+  cartQuantity?: number;
 }
 
-export default function ProductCard({ product, onPress, onAddToCart }: Props) {
+export default function ProductCard({ product, onPress, onAddToCart, onIncrement, onDecrement, cartQuantity = 0 }: Props) {
   const effectivePrice = product.price * (1 - (product.discount || 0) / 100);
 
   return (
@@ -40,10 +43,32 @@ export default function ProductCard({ product, onPress, onAddToCart }: Props) {
               <Text style={styles.oldPrice}>${product.price.toFixed(2)}</Text>
             )}
           </View>
-          {onAddToCart && product.stock > 0 && (
-            <TouchableOpacity testID={`add-cart-${product.product_id}`} style={styles.addBtn} onPress={(e) => { e.stopPropagation(); onAddToCart(); }}>
-              <Ionicons name="add" size={18} color={COLORS.white} />
-            </TouchableOpacity>
+          {product.stock > 0 && (
+            cartQuantity > 0 ? (
+              <View style={styles.stepper}>
+                <TouchableOpacity
+                  testID={`decrement-${product.product_id}`}
+                  style={styles.stepBtn}
+                  onPress={(e) => { e.stopPropagation(); onDecrement?.(); }}
+                >
+                  <Ionicons name={cartQuantity === 1 ? "trash-outline" : "remove"} size={14} color={cartQuantity === 1 ? COLORS.accent : COLORS.primary} />
+                </TouchableOpacity>
+                <Text testID={`qty-${product.product_id}`} style={styles.qtyText}>{cartQuantity}</Text>
+                <TouchableOpacity
+                  testID={`increment-${product.product_id}`}
+                  style={styles.stepBtnPlus}
+                  onPress={(e) => { e.stopPropagation(); onIncrement?.(); }}
+                >
+                  <Ionicons name="add" size={14} color={COLORS.white} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              onAddToCart && (
+                <TouchableOpacity testID={`add-cart-${product.product_id}`} style={styles.addBtn} onPress={(e) => { e.stopPropagation(); onAddToCart(); }}>
+                  <Ionicons name="add" size={18} color={COLORS.white} />
+                </TouchableOpacity>
+              )
+            )
           )}
         </View>
       </View>
@@ -64,4 +89,8 @@ const styles = StyleSheet.create({
   price: { fontSize: FONT_SIZES.lg, fontWeight: '700', color: COLORS.primary },
   oldPrice: { fontSize: FONT_SIZES.xs, color: COLORS.textSecondary, textDecorationLine: 'line-through' },
   addBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
+  stepper: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.muted, borderRadius: BORDER_RADIUS.full, height: 32, overflow: 'hidden' },
+  stepBtn: { width: 30, height: 32, alignItems: 'center', justifyContent: 'center' },
+  stepBtnPlus: { width: 30, height: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.full },
+  qtyText: { fontSize: FONT_SIZES.sm, fontWeight: '700', color: COLORS.textPrimary, minWidth: 22, textAlign: 'center' },
 });

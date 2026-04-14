@@ -28,13 +28,14 @@ interface CartContextType {
   updateQuantity: (productId: string, quantity: number) => Promise<void>;
   removeItem: (productId: string) => Promise<void>;
   clearCart: () => Promise<void>;
+  getItemQuantity: (productId: string) => number;
 }
 
 const CartContext = createContext<CartContextType>({
   items: [], total: 0, loading: false, itemCount: 0,
   refreshCart: async () => {}, addItem: async () => {},
   updateQuantity: async () => {}, removeItem: async () => {},
-  clearCart: async () => {},
+  clearCart: async () => {}, getItemQuantity: () => 0,
 });
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
@@ -79,8 +80,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
 
+  const getItemQuantity = useCallback((productId: string) => {
+    const item = items.find(i => i.product_id === productId);
+    return item ? item.quantity : 0;
+  }, [items]);
+
   return (
-    <CartContext.Provider value={{ items, total, loading, itemCount, refreshCart, addItem, updateQuantity, removeItem, clearCart }}>
+    <CartContext.Provider value={{ items, total, loading, itemCount, refreshCart, addItem, updateQuantity, removeItem, clearCart, getItemQuantity }}>
       {children}
     </CartContext.Provider>
   );

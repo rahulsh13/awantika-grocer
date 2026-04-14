@@ -14,7 +14,7 @@ export default function SearchScreen() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [sortBy, setSortBy] = useState('');
-  const { addItem } = useCart();
+  const { addItem, getItemQuantity, updateQuantity, removeItem } = useCart();
   const router = useRouter();
 
   useEffect(() => {
@@ -87,7 +87,17 @@ export default function SearchScreen() {
           ListEmptyComponent={<Text style={styles.emptyText}>{query || params.category ? 'No products found' : 'Try searching for something'}</Text>}
           renderItem={({ item }) => (
             <View style={styles.col}>
-              <ProductCard product={item} onPress={() => router.push(`/product/${item.product_id}`)} onAddToCart={async () => { try { await addItem(item.product_id); Alert.alert('Added', 'Item added to cart'); } catch (e: any) { Alert.alert('Error', e.message); } }} />
+              <ProductCard
+                product={item}
+                onPress={() => router.push(`/product/${item.product_id}`)}
+                cartQuantity={getItemQuantity(item.product_id)}
+                onAddToCart={async () => { try { await addItem(item.product_id); } catch (e: any) { Alert.alert('Error', e.message); } }}
+                onIncrement={async () => { try { await updateQuantity(item.product_id, getItemQuantity(item.product_id) + 1); } catch {} }}
+                onDecrement={async () => {
+                  const qty = getItemQuantity(item.product_id);
+                  try { if (qty <= 1) { await removeItem(item.product_id); } else { await updateQuantity(item.product_id, qty - 1); } } catch {}
+                }}
+              />
             </View>
           )}
         />
