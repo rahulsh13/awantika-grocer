@@ -87,6 +87,7 @@ class AddressCreate(BaseModel):
     state: str
     pincode: str
     is_default: bool = False
+    label: str = "Home"
 
 class OrderCreate(BaseModel):
     address_id: str
