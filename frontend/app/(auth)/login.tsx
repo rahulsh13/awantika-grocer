@@ -21,7 +21,6 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await login(email.trim(), password);
-      router.replace('/(tabs)');
     } catch (e: any) {
       Alert.alert('Login Failed', e.message || 'Invalid credentials');
     } finally { setLoading(false); }
@@ -38,7 +37,6 @@ export default function LoginScreen() {
         if (sessionId) {
           setLoading(true);
           await loginWithGoogle(sessionId);
-          router.replace('/(tabs)');
         }
       }
     } catch (e: any) {

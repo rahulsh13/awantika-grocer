@@ -13,7 +13,7 @@ export default function AccountScreen() {
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: async () => { await logout(); router.replace('/(auth)/login'); } },
+      { text: 'Logout', style: 'destructive', onPress: async () => { await logout(); } },
     ]);
   };
 

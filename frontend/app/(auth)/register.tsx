@@ -20,7 +20,6 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       await register(name.trim(), email.trim(), password);
-      router.replace('/(tabs)');
     } catch (e: any) {
       Alert.alert('Registration Failed', e.message);
     } finally { setLoading(false); }
