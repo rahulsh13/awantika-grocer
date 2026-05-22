@@ -8,7 +8,7 @@ import os
 import uuid
 import base64
 
-BASE_URL = os.environ.get('EXPO_PUBLIC_BACKEND_URL', 'https://freshmart-mobile-1.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('EXPO_PUBLIC_BACKEND_URL', 'http://localhost:8000').rstrip('/')
 
 ADMIN_EMAIL = "admin@freshmart.com"
 ADMIN_PASSWORD = "Admin@123"

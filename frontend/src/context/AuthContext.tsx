@@ -16,7 +16,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
-  loginWithGoogle: (sessionId: string) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -62,8 +62,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(data.user);
   };
 
-  const loginWithGoogle = async (sessionId: string) => {
-    const data = await apiPost('/auth/google-session', { session_id: sessionId });
+  const loginWithGoogle = async (idToken: string) => {
+    const data = await apiPost('/auth/google', { access_token: idToken });
     await AsyncStorage.setItem('access_token', data.access_token);
     await AsyncStorage.setItem('refresh_token', data.refresh_token);
     setUser(data.user);

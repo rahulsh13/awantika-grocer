@@ -8,7 +8,7 @@ import os
 import uuid
 
 # Get backend URL from environment or use the public URL
-BASE_URL = os.environ.get('EXPO_PUBLIC_BACKEND_URL', 'https://freshmart-mobile-1.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('EXPO_PUBLIC_BACKEND_URL', 'http://localhost:8000').rstrip('/')
 
 # Test data
 ADMIN_EMAIL = "admin@freshmart.com"

@@ -10,11 +10,11 @@ import { useAuth } from '../../src/context/AuthContext';
 import ProductCard from '../../src/components/ProductCard';
 import CategoryCard from '../../src/components/CategoryCard';
 
-const LOGO_URL = 'https://customer-assets.emergentagent.com/job_freshmart-mobile-1/artifacts/5ry3wzoh_Screenshot%202026-03-26%20093246.png';
+const LOGO_URL = require('../../assets/images/icon.png');
 
 const BANNERS = [
-  { id: '1', image: 'https://static.prod-images.emergentagent.com/jobs/c30e7a80-bfe7-46d9-a18b-3c37ff1d6fac/images/56996fdb23e701603d6c3865aad01bfb6505f8696ac977e25c08b82a558db56c.png', title: 'Fresh Organic Vegetables', subtitle: 'Up to 20% off' },
-  { id: '2', image: 'https://static.prod-images.emergentagent.com/jobs/c30e7a80-bfe7-46d9-a18b-3c37ff1d6fac/images/61899c63e1f73d14edea0bbb80962f9471a21a8075089b0d7d98f48ece4062f5.png', title: 'Daily Essentials', subtitle: 'Free delivery on $25+' },
+  { id: '1', image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600', title: 'Fresh Organic Vegetables', subtitle: 'Up to 20% off' },
+  { id: '2', image: 'https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=600', title: 'Daily Essentials', subtitle: 'Free delivery on $25+' },
 ];
 
 export default function HomeScreen() {
@@ -54,7 +54,7 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Image source={{ uri: LOGO_URL }} style={styles.headerLogo} resizeMode="contain" />
+            <Image source={LOGO_URL} style={styles.headerLogo} resizeMode="contain" />
             <View>
               <Text style={styles.greeting}>Hello, {user?.name || 'Guest'}</Text>
               <Text style={styles.headerTitle}>Awantika Grocers</Text>

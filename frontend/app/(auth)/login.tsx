@@ -8,6 +8,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES } from '../../src/constants/theme';
 import { useAuth } from '../../src/context/AuthContext';
 
+const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '';
+
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,31 +19,60 @@ export default function LoginScreen() {
   const router = useRouter();
 
   const handleLogin = async () => {
-    if (!email.trim() || !password) { Alert.alert('Error', 'Please fill in all fields'); return; }
+    if (!email.trim() || !password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
     setLoading(true);
     try {
       await login(email.trim(), password);
     } catch (e: any) {
       Alert.alert('Login Failed', e.message || 'Invalid credentials');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogleLogin = async () => {
+    if (!GOOGLE_CLIENT_ID) {
+      Alert.alert('Not configured', 'Google Sign-In is not set up yet. Please use email/password login.');
+      return;
+    }
     try {
-      // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-      const redirectUrl = Linking.createURL('auth-callback');
-      const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
+      // Use Google's OAuth web flow — no native modules required, works in Expo Go
+      const redirectUri = Linking.createURL('/auth-callback');
+      const authUrl =
+        `https://accounts.google.com/o/oauth2/v2/auth` +
+        `?client_id=${GOOGLE_CLIENT_ID}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&response_type=token` +
+        `&scope=${encodeURIComponent('openid email profile')}`;
+
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+
       if (result.type === 'success' && result.url) {
-        const sessionId = result.url.split('session_id=')[1]?.split('&')[0];
-        if (sessionId) {
+        // Extract access_token from the URL fragment
+        const fragment = result.url.split('#')[1] || '';
+        const params = Object.fromEntries(fragment.split('&').map(p => p.split('=')));
+        const accessToken = params['access_token'];
+
+        if (accessToken) {
           setLoading(true);
-          await loginWithGoogle(sessionId);
+          // Exchange access token for user info, then send id_token to backend
+          const userInfoResp = await fetch(
+            `https://www.googleapis.com/oauth2/v3/userinfo`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+          if (!userInfoResp.ok) throw new Error('Failed to fetch Google user info');
+          // We pass the access token; backend verifies via tokeninfo endpoint
+          await loginWithGoogle(accessToken);
         }
       }
     } catch (e: any) {
       Alert.alert('Google Login Failed', e.message);
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -50,7 +81,7 @@ export default function LoginScreen() {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <View style={styles.logoWrap}>
-              <Image source={{ uri: 'https://customer-assets.emergentagent.com/job_freshmart-mobile-1/artifacts/5ry3wzoh_Screenshot%202026-03-26%20093246.png' }} style={styles.logoImg} resizeMode="contain" />
+              <Image source={require('../../assets/images/icon.png')} style={styles.logoImg} resizeMode="contain" />
             </View>
             <Text style={styles.title}>Awantika Grocers</Text>
             <Text style={styles.subtitle}>Fresh groceries delivered to your door</Text>
@@ -60,13 +91,30 @@ export default function LoginScreen() {
             <Text style={styles.label}>Email</Text>
             <View style={styles.inputWrap}>
               <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} />
-              <TextInput testID="login-email-input" style={styles.input} placeholder="Enter your email" placeholderTextColor={COLORS.textSecondary} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+              <TextInput
+                testID="login-email-input"
+                style={styles.input}
+                placeholder="Enter your email"
+                placeholderTextColor={COLORS.textSecondary}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
             </View>
 
             <Text style={styles.label}>Password</Text>
             <View style={styles.inputWrap}>
               <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} />
-              <TextInput testID="login-password-input" style={styles.input} placeholder="Enter your password" placeholderTextColor={COLORS.textSecondary} value={password} onChangeText={setPassword} secureTextEntry={!showPassword} />
+              <TextInput
+                testID="login-password-input"
+                style={styles.input}
+                placeholder="Enter your password"
+                placeholderTextColor={COLORS.textSecondary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={COLORS.textSecondary} />
               </TouchableOpacity>
@@ -76,12 +124,19 @@ export default function LoginScreen() {
               <Text style={styles.forgotText}>Forgot Password?</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity testID="login-submit-btn" style={[styles.btn, loading && styles.btnDisabled]} onPress={handleLogin} disabled={loading}>
+            <TouchableOpacity
+              testID="login-submit-btn"
+              style={[styles.btn, loading && styles.btnDisabled]}
+              onPress={handleLogin}
+              disabled={loading}
+            >
               <Text style={styles.btnText}>{loading ? 'Signing in...' : 'Sign In'}</Text>
             </TouchableOpacity>
 
             <View style={styles.divider}>
-              <View style={styles.line} /><Text style={styles.orText}>OR</Text><View style={styles.line} />
+              <View style={styles.line} />
+              <Text style={styles.orText}>OR</Text>
+              <View style={styles.line} />
             </View>
 
             <TouchableOpacity testID="google-login-btn" style={styles.googleBtn} onPress={handleGoogleLogin}>

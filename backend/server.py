@@ -28,7 +28,8 @@ JWT_ALGORITHM = "HS256"
 ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@freshmart.com')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'Admin@123')
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '')
-EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -50,8 +51,9 @@ class ResetPassword(BaseModel):
     token: str
     new_password: str
 
-class GoogleSession(BaseModel):
-    session_id: str
+class GoogleLogin(BaseModel):
+    id_token: str = ""
+    access_token: str = ""
 
 class RefreshRequest(BaseModel):
     refresh_token: str
@@ -279,29 +281,51 @@ async def reset_password(data: ResetPassword):
     await db.password_reset_tokens.update_one({"token": data.token}, {"$set": {"used": True}})
     return {"message": "Password reset successfully"}
 
-@api_router.post("/auth/google-session")
-async def google_session(data: GoogleSession):
+@api_router.post("/auth/google")
+async def google_login(data: GoogleLogin):
+    """Verify Google token (id_token or access_token) and sign in / register the user."""
     async with httpx.AsyncClient() as http_client:
-        resp = await http_client.get(
-            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
-            headers={"X-Session-ID": data.session_id}
-        )
-        if resp.status_code != 200:
-            raise HTTPException(status_code=401, detail="Invalid session")
-        session_data = resp.json()
-    email = session_data["email"].lower()
+        if data.id_token:
+            # Verify via tokeninfo (id_token flow)
+            resp = await http_client.get(
+                f"https://oauth2.googleapis.com/tokeninfo?id_token={data.id_token}"
+            )
+            if resp.status_code != 200:
+                raise HTTPException(status_code=401, detail="Invalid Google token")
+            token_info = resp.json()
+            if GOOGLE_CLIENT_ID and token_info.get("aud") != GOOGLE_CLIENT_ID:
+                raise HTTPException(status_code=401, detail="Token audience mismatch")
+            email = token_info.get("email", "").lower()
+            name = token_info.get("name", "")
+            picture = token_info.get("picture", "")
+        elif data.access_token:
+            # Verify via userinfo (access_token / web OAuth flow)
+            resp = await http_client.get(
+                "https://www.googleapis.com/oauth2/v3/userinfo",
+                headers={"Authorization": f"Bearer {data.access_token}"}
+            )
+            if resp.status_code != 200:
+                raise HTTPException(status_code=401, detail="Invalid Google access token")
+            token_info = resp.json()
+            email = token_info.get("email", "").lower()
+            name = token_info.get("name", "")
+            picture = token_info.get("picture", "")
+        else:
+            raise HTTPException(status_code=400, detail="id_token or access_token required")
+
+    if not email:
+        raise HTTPException(status_code=401, detail="Email not found in token")
     existing = await db.users.find_one({"email": email}, {"_id": 0})
     if existing:
         user_id = existing["user_id"]
         await db.users.update_one(
             {"user_id": user_id},
-            {"$set": {"name": session_data.get("name", existing.get("name", "")), "picture": session_data.get("picture", "")}}
+            {"$set": {"name": name or existing.get("name", ""), "picture": picture}}
         )
     else:
         user_id = f"user_{uuid.uuid4().hex[:12]}"
         await db.users.insert_one({
-            "user_id": user_id, "email": email,
-            "name": session_data.get("name", ""), "picture": session_data.get("picture", ""),
+            "user_id": user_id, "email": email, "name": name, "picture": picture,
             "role": "customer", "created_at": datetime.now(timezone.utc).isoformat()
         })
     access_token = create_access_token(user_id, email)
@@ -562,25 +586,34 @@ async def create_checkout_session(data: CheckoutRequest, request: Request):
     order = await db.orders.find_one({"order_id": data.order_id, "user_id": user["user_id"]}, {"_id": 0})
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+    import stripe as stripe_sdk
+    stripe_sdk.api_key = STRIPE_API_KEY
     host_url = data.origin_url.rstrip("/")
     success_url = f"{host_url}/checkout-success?session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{host_url}/checkout"
     webhook_url = f"{str(request.base_url).rstrip('/')}/api/webhook/stripe"
-    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
-    checkout_request = CheckoutSessionRequest(
-        amount=float(order["total"]), currency="usd",
-        success_url=success_url, cancel_url=cancel_url,
-        metadata={"order_id": data.order_id, "user_id": user["user_id"]}
+    session = stripe_sdk.checkout.Session.create(
+        payment_method_types=["card"],
+        line_items=[{
+            "price_data": {
+                "currency": "usd",
+                "product_data": {"name": f"Order #{data.order_id[-8:]}"},
+                "unit_amount": int(float(order["total"]) * 100),
+            },
+            "quantity": 1,
+        }],
+        mode="payment",
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata={"order_id": data.order_id, "user_id": user["user_id"]},
     )
-    session = await stripe_checkout.create_checkout_session(checkout_request)
     await db.payment_transactions.insert_one({
-        "session_id": session.session_id, "order_id": data.order_id,
+        "session_id": session.id, "order_id": data.order_id,
         "user_id": user["user_id"], "amount": float(order["total"]),
         "currency": "usd", "status": "initiated", "payment_status": "pending",
         "created_at": datetime.now(timezone.utc).isoformat()
     })
-    return {"url": session.url, "session_id": session.session_id}
+    return {"url": session.url, "session_id": session.id}
 
 @api_router.get("/checkout/status/{session_id}")
 async def get_checkout_status(session_id: str, request: Request):
@@ -588,29 +621,35 @@ async def get_checkout_status(session_id: str, request: Request):
     transaction = await db.payment_transactions.find_one({"session_id": session_id, "user_id": user["user_id"]}, {"_id": 0})
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    from emergentintegrations.payments.stripe.checkout import StripeCheckout
-    webhook_url = f"{str(request.base_url).rstrip('/')}/api/webhook/stripe"
-    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
-    status = await stripe_checkout.get_checkout_status(session_id)
-    await db.payment_transactions.update_one({"session_id": session_id}, {"$set": {"status": status.status, "payment_status": status.payment_status}})
-    if status.payment_status == "paid" and transaction.get("payment_status") != "paid":
+    import stripe as stripe_sdk
+    stripe_sdk.api_key = STRIPE_API_KEY
+    session = stripe_sdk.checkout.Session.retrieve(session_id)
+    status = session.status  # "open", "complete", "expired"
+    payment_status = session.payment_status  # "paid", "unpaid", "no_payment_required"
+    await db.payment_transactions.update_one({"session_id": session_id}, {"$set": {"status": status, "payment_status": payment_status}})
+    if payment_status == "paid" and transaction.get("payment_status") != "paid":
         await db.orders.update_one({"order_id": transaction["order_id"]}, {"$set": {"payment_status": "paid", "status": "confirmed"}})
-    return {"status": status.status, "payment_status": status.payment_status, "amount_total": status.amount_total}
+    return {"status": status, "payment_status": payment_status, "amount_total": session.amount_total}
 
 @api_router.post("/webhook/stripe")
 async def stripe_webhook(request: Request):
+    import stripe as stripe_sdk
+    stripe_sdk.api_key = STRIPE_API_KEY
     body = await request.body()
     signature = request.headers.get("Stripe-Signature", "")
-    from emergentintegrations.payments.stripe.checkout import StripeCheckout
-    webhook_url = f"{str(request.base_url).rstrip('/')}/api/webhook/stripe"
-    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
     try:
-        event = await stripe_checkout.handle_webhook(body, signature)
-        if event.payment_status == "paid":
-            transaction = await db.payment_transactions.find_one({"session_id": event.session_id}, {"_id": 0})
-            if transaction and transaction.get("payment_status") != "paid":
-                await db.payment_transactions.update_one({"session_id": event.session_id}, {"$set": {"status": "complete", "payment_status": "paid"}})
-                await db.orders.update_one({"order_id": transaction["order_id"]}, {"$set": {"payment_status": "paid", "status": "confirmed"}})
+        if webhook_secret:
+            event = stripe_sdk.Webhook.construct_event(body, signature, webhook_secret)
+        else:
+            event = stripe_sdk.Event.construct_from(json.loads(body), stripe_sdk.api_key)
+        if event["type"] == "checkout.session.completed":
+            session = event["data"]["object"]
+            if session.get("payment_status") == "paid":
+                transaction = await db.payment_transactions.find_one({"session_id": session["id"]}, {"_id": 0})
+                if transaction and transaction.get("payment_status") != "paid":
+                    await db.payment_transactions.update_one({"session_id": session["id"]}, {"$set": {"status": "complete", "payment_status": "paid"}})
+                    await db.orders.update_one({"order_id": transaction["order_id"]}, {"$set": {"payment_status": "paid", "status": "confirmed"}})
         return {"status": "ok"}
     except Exception as e:
         logger.error(f"Webhook error: {e}")
@@ -620,25 +659,29 @@ async def stripe_webhook(request: Request):
 @api_router.post("/ai/search")
 async def ai_search(data: AISearchRequest):
     try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        from openai import AsyncOpenAI
         products = await db.products.find({}, {"_id": 0, "product_id": 1, "name": 1, "category_name": 1, "price": 1, "unit": 1}).to_list(200)
         product_list = "\n".join([f"- {p['name']} ({p.get('category_name', '')}) - ${p['price']}/{p.get('unit', 'piece')}" for p in products])
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"search_{uuid.uuid4().hex[:8]}",
-            system_message=f"You are a grocery search assistant. Given a user query, return a JSON array of matching product names from:\n{product_list}\nReturn ONLY a JSON array like: [\"Product Name 1\"]. If query is about a recipe/meal, suggest ingredients. Empty array if no matches."
-        ).with_model("openai", "gpt-5.2")
-        response = await chat.send_message(UserMessage(text=data.query))
+        client_ai = AsyncOpenAI(api_key=OPENAI_API_KEY)
+        response = await client_ai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": f"You are a grocery search assistant. Given a user query, return a JSON array of matching product names from:\n{product_list}\nReturn ONLY a JSON array like: [\"Product Name 1\"]. If query is about a recipe/meal, suggest ingredients. Empty array if no matches."},
+                {"role": "user", "content": data.query}
+            ],
+            temperature=0,
+        )
+        ai_text = response.choices[0].message.content or "[]"
         try:
-            matched_names = json.loads(response)
+            matched_names = json.loads(ai_text)
         except Exception:
-            match = re.search(r'\[.*?\]', response, re.DOTALL)
+            match = re.search(r'\[.*?\]', ai_text, re.DOTALL)
             matched_names = json.loads(match.group()) if match else []
         if matched_names:
             matched_products = await db.products.find({"name": {"$in": matched_names}}, {"_id": 0}).to_list(50)
         else:
             matched_products = await db.products.find({"$or": [{"name": {"$regex": data.query, "$options": "i"}}, {"description": {"$regex": data.query, "$options": "i"}}]}, {"_id": 0}).to_list(50)
-        return {"products": matched_products, "ai_response": response}
+        return {"products": matched_products, "ai_response": ai_text}
     except Exception as e:
         logger.error(f"AI search error: {e}")
         products = await db.products.find({"$or": [{"name": {"$regex": data.query, "$options": "i"}}, {"description": {"$regex": data.query, "$options": "i"}}]}, {"_id": 0}).to_list(50)
