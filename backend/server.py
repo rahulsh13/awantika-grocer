@@ -64,6 +64,12 @@ class CategoryCreate(BaseModel):
     description: str = ""
     order: int = 0
 
+class ProductVariant(BaseModel):
+    label: str          # e.g. "500g", "1kg", "200ml"
+    price: float
+    discount: float = 0
+    stock: int = 100
+
 class ProductCreate(BaseModel):
     name: str
     description: str = ""
@@ -75,10 +81,12 @@ class ProductCreate(BaseModel):
     stock: int = 100
     unit: str = "piece"
     featured: bool = False
+    variants: List[ProductVariant] = []
 
 class CartItemReq(BaseModel):
     product_id: str
     quantity: int = 1
+    variant_label: str = ""  # e.g. "500g", "1kg" — empty means base product
 
 class AddressCreate(BaseModel):
     name: str
@@ -419,8 +427,17 @@ async def get_cart(request: Request):
     for item in cart.get("items", []):
         product = await db.products.find_one({"product_id": item["product_id"]}, {"_id": 0})
         if product:
-            effective_price = product["price"] * (1 - product.get("discount", 0) / 100)
-            enriched_item = {**item, "product": product, "subtotal": round(effective_price * item["quantity"], 2)}
+            # Resolve price from variant if specified
+            variant_label = item.get("variant_label", "")
+            if variant_label and product.get("variants"):
+                variant = next((v for v in product["variants"] if v["label"] == variant_label), None)
+                if variant:
+                    item_price = variant["price"] * (1 - variant.get("discount", 0) / 100)
+                else:
+                    item_price = product["price"] * (1 - product.get("discount", 0) / 100)
+            else:
+                item_price = product["price"] * (1 - product.get("discount", 0) / 100)
+            enriched_item = {**item, "product": product, "subtotal": round(item_price * item["quantity"], 2)}
             enriched_items.append(enriched_item)
             total += enriched_item["subtotal"]
     return {"user_id": user["user_id"], "items": enriched_items, "total": round(total, 2)}
@@ -431,33 +448,50 @@ async def add_to_cart(item: CartItemReq, request: Request):
     product = await db.products.find_one({"product_id": item.product_id}, {"_id": 0})
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    if product.get("stock", 0) < item.quantity:
+    # Check stock for variant or base product
+    if item.variant_label and product.get("variants"):
+        variant = next((v for v in product["variants"] if v["label"] == item.variant_label), None)
+        if variant and variant.get("stock", 0) < item.quantity:
+            raise HTTPException(status_code=400, detail="Insufficient stock")
+    elif product.get("stock", 0) < item.quantity:
         raise HTTPException(status_code=400, detail="Insufficient stock")
     cart = await db.carts.find_one({"user_id": user["user_id"]}, {"_id": 0})
+    cart_item = {"product_id": item.product_id, "quantity": item.quantity, "variant_label": item.variant_label}
     if cart:
-        existing = next((i for i in cart["items"] if i["product_id"] == item.product_id), None)
+        existing = next((i for i in cart["items"] if i["product_id"] == item.product_id and i.get("variant_label", "") == item.variant_label), None)
         if existing:
             existing["quantity"] += item.quantity
             await db.carts.update_one({"user_id": user["user_id"]}, {"$set": {"items": cart["items"], "updated_at": datetime.now(timezone.utc).isoformat()}})
         else:
-            await db.carts.update_one({"user_id": user["user_id"]}, {"$push": {"items": {"product_id": item.product_id, "quantity": item.quantity}}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}})
+            await db.carts.update_one({"user_id": user["user_id"]}, {"$push": {"items": cart_item}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}})
     else:
-        await db.carts.insert_one({"user_id": user["user_id"], "items": [{"product_id": item.product_id, "quantity": item.quantity}], "updated_at": datetime.now(timezone.utc).isoformat()})
+        await db.carts.insert_one({"user_id": user["user_id"], "items": [cart_item], "updated_at": datetime.now(timezone.utc).isoformat()})
     return {"message": "Added to cart"}
 
 @api_router.put("/cart/update")
 async def update_cart_item(item: CartItemReq, request: Request):
     user = await get_current_user(request)
     if item.quantity <= 0:
-        await db.carts.update_one({"user_id": user["user_id"]}, {"$pull": {"items": {"product_id": item.product_id}}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}})
+        await db.carts.update_one(
+            {"user_id": user["user_id"]},
+            {"$pull": {"items": {"product_id": item.product_id, "variant_label": item.variant_label}},
+             "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
     else:
-        await db.carts.update_one({"user_id": user["user_id"], "items.product_id": item.product_id}, {"$set": {"items.$.quantity": item.quantity, "updated_at": datetime.now(timezone.utc).isoformat()}})
+        await db.carts.update_one(
+            {"user_id": user["user_id"], "items.product_id": item.product_id, "items.variant_label": item.variant_label},
+            {"$set": {"items.$.quantity": item.quantity, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
     return {"message": "Cart updated"}
 
 @api_router.delete("/cart/remove/{product_id}")
-async def remove_from_cart(product_id: str, request: Request):
+async def remove_from_cart(product_id: str, request: Request, variant_label: str = ""):
     user = await get_current_user(request)
-    await db.carts.update_one({"user_id": user["user_id"]}, {"$pull": {"items": {"product_id": product_id}}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}})
+    await db.carts.update_one(
+        {"user_id": user["user_id"]},
+        {"$pull": {"items": {"product_id": product_id, "variant_label": variant_label}},
+         "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
     return {"message": "Item removed from cart"}
 
 @api_router.delete("/cart/clear")
@@ -519,12 +553,18 @@ async def create_order(data: OrderCreate, request: Request):
         if not product:
             continue
         effective_price = product["price"] * (1 - product.get("discount", 0) / 100)
+        variant_label = item.get("variant_label", "")
+        if variant_label and product.get("variants"):
+            variant = next((v for v in product["variants"] if v["label"] == variant_label), None)
+            if variant:
+                effective_price = variant["price"] * (1 - variant.get("discount", 0) / 100)
         order_item = {
             "product_id": item["product_id"], "name": product["name"],
             "price": product["price"], "discount": product.get("discount", 0),
             "effective_price": round(effective_price, 2), "quantity": item["quantity"],
             "subtotal": round(effective_price * item["quantity"], 2),
             "unit": product.get("unit", "piece"),
+            "variant_label": variant_label,
             "image": product["images"][0] if product.get("images") else ""
         }
         order_items.append(order_item)

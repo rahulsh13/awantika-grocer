@@ -8,7 +8,7 @@ import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES } from '../src/constants/the
 import { apiGet, apiPost, apiPut, apiDelete } from '../src/utils/api';
 import { useAuth } from '../src/context/AuthContext';
 
-const EMPTY_FORM = { name: '', description: '', price: '', discount: '0', category_id: '', unit: 'piece', stock: '100', featured: false, images: [] as string[] };
+const EMPTY_FORM = { name: '', description: '', price: '', discount: '0', category_id: '', unit: 'piece', stock: '100', featured: false, images: [] as string[], variants: [] as {label: string; price: string; discount: string; stock: string}[] };
 
 export default function AdminProductsScreen() {
   const [products, setProducts] = useState<any[]>([]);
@@ -100,6 +100,14 @@ export default function AdminProductsScreen() {
         stock: parseInt(form.stock) || 0,
         featured: form.featured,
         images: form.images.length > 0 ? form.images : ['https://via.placeholder.com/400'],
+        variants: form.variants
+          .filter(v => v.label.trim())
+          .map(v => ({
+            label: v.label.trim(),
+            price: parseFloat(v.price) || 0,
+            discount: parseFloat(v.discount) || 0,
+            stock: parseInt(v.stock) || 0,
+          })),
       };
       if (editing) {
         await apiPut(`/admin/products/${editing}`, payload);
@@ -128,6 +136,12 @@ export default function AdminProductsScreen() {
       stock: String(product.stock || 0),
       featured: product.featured || false,
       images: product.images || [],
+      variants: (product.variants || []).map((v: any) => ({
+        label: v.label,
+        price: String(v.price),
+        discount: String(v.discount || 0),
+        stock: String(v.stock || 0),
+      })),
     });
     setShowForm(true);
   };
@@ -258,11 +272,76 @@ export default function AdminProductsScreen() {
                 </View>
               </View>
 
+              {/* Variants Section */}
+              <View style={styles.variantSection}>
+                <View style={styles.variantHeader}>
+                  <Text style={styles.label}>Variants (e.g. 500g, 1kg)</Text>
+                  <TouchableOpacity
+                    testID="add-variant-btn"
+                    style={styles.addVariantBtn}
+                    onPress={() => setForm(p => ({
+                      ...p,
+                      variants: [...p.variants, { label: '', price: '', discount: '0', stock: '100' }]
+                    }))}
+                  >
+                    <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
+                    <Text style={styles.addVariantText}>Add Variant</Text>
+                  </TouchableOpacity>
+                </View>
+                {form.variants.map((v, idx) => (
+                  <View key={idx} style={styles.variantRow}>
+                    <TextInput
+                      style={[styles.input, { flex: 1.2 }]}
+                      value={v.label}
+                      onChangeText={t => setForm(p => {
+                        const variants = [...p.variants];
+                        variants[idx] = { ...variants[idx], label: t };
+                        return { ...p, variants };
+                      })}
+                      placeholder="500g"
+                      placeholderTextColor={COLORS.textSecondary}
+                    />
+                    <TextInput
+                      style={[styles.input, { flex: 1 }]}
+                      value={v.price}
+                      onChangeText={t => setForm(p => {
+                        const variants = [...p.variants];
+                        variants[idx] = { ...variants[idx], price: t };
+                        return { ...p, variants };
+                      })}
+                      placeholder="Price"
+                      placeholderTextColor={COLORS.textSecondary}
+                      keyboardType="decimal-pad"
+                    />
+                    <TextInput
+                      style={[styles.input, { flex: 0.8 }]}
+                      value={v.stock}
+                      onChangeText={t => setForm(p => {
+                        const variants = [...p.variants];
+                        variants[idx] = { ...variants[idx], stock: t };
+                        return { ...p, variants };
+                      })}
+                      placeholder="Stock"
+                      placeholderTextColor={COLORS.textSecondary}
+                      keyboardType="number-pad"
+                    />
+                    <TouchableOpacity
+                      onPress={() => setForm(p => ({ ...p, variants: p.variants.filter((_, i) => i !== idx) }))}
+                      style={{ paddingHorizontal: SPACING.xs }}
+                    >
+                      <Ionicons name="close-circle" size={22} color={COLORS.accent} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {form.variants.length === 0 && (
+                  <Text style={styles.variantHint}>No variants — product uses base price & stock above.</Text>
+                )}
+              </View>
+
               <TouchableOpacity style={styles.featuredToggle} onPress={() => setForm(p => ({ ...p, featured: !p.featured }))}>
                 <Ionicons name={form.featured ? 'star' : 'star-outline'} size={22} color={form.featured ? COLORS.warning : COLORS.textSecondary} />
                 <Text style={styles.featuredLabel}>Featured Product</Text>
               </TouchableOpacity>
-
               <TouchableOpacity testID="save-product-btn" style={[styles.saveBtn, loading && { opacity: 0.6 }]} onPress={handleSave} disabled={loading}>
                 <Text style={styles.saveBtnText}>{loading ? 'Saving...' : editing ? 'Update Product' : 'Create Product'}</Text>
               </TouchableOpacity>
@@ -310,6 +389,12 @@ const styles = StyleSheet.create({
   unitChipTextActive: { color: COLORS.white },
   featuredToggle: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingVertical: SPACING.md },
   featuredLabel: { fontSize: FONT_SIZES.md, color: COLORS.textPrimary, fontWeight: '600' },
+  variantSection: { marginTop: SPACING.md },
+  variantHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
+  addVariantBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  addVariantText: { fontSize: FONT_SIZES.sm, color: COLORS.primary, fontWeight: '600' },
+  variantRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginBottom: SPACING.xs },
+  variantHint: { fontSize: FONT_SIZES.xs, color: COLORS.textSecondary, fontStyle: 'italic', marginTop: SPACING.xs },
   saveBtn: { backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.md, height: 52, alignItems: 'center', justifyContent: 'center', marginTop: SPACING.lg, marginBottom: SPACING.xxl },
   saveBtnText: { color: COLORS.white, fontSize: FONT_SIZES.lg, fontWeight: '700' },
 });

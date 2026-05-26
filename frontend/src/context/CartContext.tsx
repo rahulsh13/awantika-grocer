@@ -9,11 +9,13 @@ interface CartProduct {
   discount: number;
   images: string[];
   unit: string;
+  variants?: { label: string; price: number; discount: number; stock: number }[];
 }
 
 interface CartItem {
   product_id: string;
   quantity: number;
+  variant_label: string;
   product: CartProduct;
   subtotal: number;
 }
@@ -24,11 +26,11 @@ interface CartContextType {
   loading: boolean;
   itemCount: number;
   refreshCart: () => Promise<void>;
-  addItem: (productId: string, quantity?: number) => Promise<void>;
-  updateQuantity: (productId: string, quantity: number) => Promise<void>;
-  removeItem: (productId: string) => Promise<void>;
+  addItem: (productId: string, quantity?: number, variantLabel?: string) => Promise<void>;
+  updateQuantity: (productId: string, quantity: number, variantLabel?: string) => Promise<void>;
+  removeItem: (productId: string, variantLabel?: string) => Promise<void>;
   clearCart: () => Promise<void>;
-  getItemQuantity: (productId: string) => number;
+  getItemQuantity: (productId: string, variantLabel?: string) => number;
 }
 
 const CartContext = createContext<CartContextType>({
@@ -58,18 +60,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  const addItem = async (productId: string, quantity = 1) => {
-    await apiPost('/cart/add', { product_id: productId, quantity });
+  const addItem = async (productId: string, quantity = 1, variantLabel = '') => {
+    await apiPost('/cart/add', { product_id: productId, quantity, variant_label: variantLabel });
     await refreshCart();
   };
 
-  const updateQuantity = async (productId: string, quantity: number) => {
-    await apiPut('/cart/update', { product_id: productId, quantity });
+  const updateQuantity = async (productId: string, quantity: number, variantLabel = '') => {
+    await apiPut('/cart/update', { product_id: productId, quantity, variant_label: variantLabel });
     await refreshCart();
   };
 
-  const removeItem = async (productId: string) => {
-    await apiDelete(`/cart/remove/${productId}`);
+  const removeItem = async (productId: string, variantLabel = '') => {
+    await apiDelete(`/cart/remove/${productId}?variant_label=${encodeURIComponent(variantLabel)}`);
     await refreshCart();
   };
 
@@ -80,8 +82,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
 
-  const getItemQuantity = useCallback((productId: string) => {
-    const item = items.find(i => i.product_id === productId);
+  const getItemQuantity = useCallback((productId: string, variantLabel = '') => {
+    const item = items.find(i => i.product_id === productId && (i.variant_label || '') === variantLabel);
     return item ? item.quantity : 0;
   }, [items]);
 
