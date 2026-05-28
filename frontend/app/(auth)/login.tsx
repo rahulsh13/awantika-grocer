@@ -1,22 +1,71 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  KeyboardAvoidingView, Platform, ScrollView, Alert, Image
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES } from '../../src/constants/theme';
 import { useAuth } from '../../src/context/AuthContext';
+import { apiGet } from '../../src/utils/api';
 
-const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '';
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { login, loginWithGoogle } = useAuth();
+  const { login, setUserFromTokens } = useAuth();
   const router = useRouter();
+
+  // Listen for deep link callback from Google OAuth (via Railway)
+  useEffect(() => {
+    const handleUrl = async (event: { url: string }) => {
+      const url = event.url;
+      if (!url.includes('auth-callback')) return;
+
+      const queryString = url.split('?')[1] || '';
+      const params = Object.fromEntries(
+        queryString.split('&').map(p => {
+          const [k, v] = p.split('=');
+          return [k, decodeURIComponent(v || '')];
+        })
+      );
+
+      if (params.error) {
+        Alert.alert('Google Sign-In Failed', params.error);
+        return;
+      }
+
+      if (params.access_token && params.refresh_token) {
+        setLoading(true);
+        try {
+          await AsyncStorage.setItem('access_token', params.access_token);
+          await AsyncStorage.setItem('refresh_token', params.refresh_token);
+          const data = await apiGet('/auth/me');
+          await setUserFromTokens(data.user);
+        } catch (e: any) {
+          Alert.alert('Sign-In Error', e.message);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    const subscription = Linking.addEventListener('url', handleUrl);
+
+    // Handle case where app was opened via deep link (cold start)
+    Linking.getInitialURL().then(url => {
+      if (url) handleUrl({ url });
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
@@ -34,33 +83,18 @@ export default function LoginScreen() {
   };
 
   const handleGoogleLogin = async () => {
-    if (!GOOGLE_CLIENT_ID) {
-      Alert.alert('Not configured', 'Google Sign-In is not set up yet. Please use email/password or phone login.');
+    if (!BACKEND_URL) {
+      Alert.alert('Error', 'Backend URL not configured.');
       return;
     }
     try {
-      const redirectUri = Linking.createURL('/auth-callback');
-      const authUrl =
-        `https://accounts.google.com/o/oauth2/v2/auth` +
-        `?client_id=${GOOGLE_CLIENT_ID}` +
-        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-        `&response_type=token` +
-        `&scope=${encodeURIComponent('openid email profile')}`;
-
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-      if (result.type === 'success' && result.url) {
-        const fragment = result.url.split('#')[1] || '';
-        const params = Object.fromEntries(fragment.split('&').map(p => p.split('=')));
-        const accessToken = params['access_token'];
-        if (accessToken) {
-          setLoading(true);
-          await loginWithGoogle(accessToken);
-        }
-      }
+      // App deep link that Railway will redirect back to
+      const appRedirect = Linking.createURL('auth-callback');
+      const googleLoginUrl = `${BACKEND_URL}/api/auth/google/login?app_redirect=${encodeURIComponent(appRedirect)}`;
+      // Open browser — Google → Railway callback → app deep link
+      await WebBrowser.openAuthSessionAsync(googleLoginUrl, appRedirect);
     } catch (e: any) {
-      Alert.alert('Google Login Failed', e.message);
-    } finally {
-      setLoading(false);
+      Alert.alert('Google Sign-In Failed', e.message);
     }
   };
 
@@ -139,14 +173,17 @@ export default function LoginScreen() {
               <Text style={styles.altBtnText}>Continue with Phone (OTP)</Text>
             </TouchableOpacity>
 
-            {/* Google Login */}
+            {/* Google Login — backend-driven OAuth flow */}
             <TouchableOpacity
               testID="google-login-btn"
               style={[styles.altBtn, { marginTop: SPACING.sm }]}
               onPress={handleGoogleLogin}
+              disabled={loading}
             >
-              <Ionicons name="logo-google" size={20} color={COLORS.textPrimary} />
-              <Text style={styles.altBtnText}>Continue with Google</Text>
+              <Ionicons name="logo-google" size={20} color="#4285F4" />
+              <Text style={styles.altBtnText}>
+                {loading ? 'Signing in...' : 'Continue with Google'}
+              </Text>
             </TouchableOpacity>
 
             <View style={styles.footerRow}>

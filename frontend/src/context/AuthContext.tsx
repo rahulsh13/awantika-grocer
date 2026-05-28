@@ -18,6 +18,7 @@ interface AuthContextType {
   register: (name: string, email: string, password: string) => Promise<void>;
   loginWithGoogle: (idToken: string) => Promise<void>;
   loginWithPhone: (phone: string, otp: string, name?: string) => Promise<void>;
+  setUserFromTokens: (user: User) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -26,7 +27,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null, loading: true,
   login: async () => {}, register: async () => {},
   loginWithGoogle: async () => {}, loginWithPhone: async () => {},
-  logout: async () => {}, refreshUser: async () => {},
+  setUserFromTokens: async () => {}, logout: async () => {},
+  refreshUser: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -77,6 +79,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(data.user);
   };
 
+  // Used by Google OAuth callback — tokens already stored, just set user state
+  const setUserFromTokens = async (user: User) => {
+    setUser(user);
+  };
+
   const logout = async () => {
     try { await apiPost('/auth/logout'); } catch {}
     await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user']);
@@ -91,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, loginWithGoogle, loginWithPhone, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, loginWithGoogle, loginWithPhone, setUserFromTokens, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -30,7 +30,9 @@ ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'Admin@123')
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '')
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
-FIREBASE_WEB_API_KEY = os.environ.get('FIREBASE_WEB_API_KEY', '')  # For sending SMS OTP
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '')
+FIREBASE_WEB_API_KEY = os.environ.get('FIREBASE_WEB_API_KEY', '')
+BACKEND_URL = os.environ.get('BACKEND_URL', 'http://localhost:8000')
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -349,6 +351,110 @@ async def google_login(data: GoogleLogin):
     refresh_token = create_refresh_token(user_id)
     user = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
     return {"user": user, "access_token": access_token, "refresh_token": refresh_token}
+
+@api_router.get("/auth/google/login")
+async def google_oauth_login(app_redirect: str = "awantika-grocers://auth-callback"):
+    """Redirect user to Google OAuth consent screen."""
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=503, detail="Google Sign-In is not configured")
+    callback_url = f"{BACKEND_URL}/api/auth/google/callback"
+    # Store app_redirect in state so we can pass it back after auth
+    import base64
+    state = base64.urlsafe_b64encode(app_redirect.encode()).decode()
+    params = {
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": callback_url,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "offline",
+        "state": state,
+        "prompt": "select_account",
+    }
+    import urllib.parse
+    query = urllib.parse.urlencode(params)
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=f"https://accounts.google.com/o/oauth2/v2/auth?{query}")
+
+@api_router.get("/auth/google/callback")
+async def google_oauth_callback(code: str = None, state: str = None, error: str = None):
+    """Handle Google OAuth callback, exchange code for tokens, redirect back to app."""
+    from fastapi.responses import RedirectResponse
+    import base64
+    import urllib.parse
+
+    # Decode app redirect URL from state
+    app_redirect = "awantika-grocers://auth-callback"
+    if state:
+        try:
+            app_redirect = base64.urlsafe_b64decode(state.encode()).decode()
+        except Exception:
+            pass
+
+    if error or not code:
+        return RedirectResponse(url=f"{app_redirect}?error={error or 'cancelled'}")
+
+    callback_url = f"{BACKEND_URL}/api/auth/google/callback"
+
+    # Exchange authorization code for tokens
+    async with httpx.AsyncClient() as http_client:
+        token_resp = await http_client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": code,
+                "client_id": GOOGLE_CLIENT_ID,
+                "client_secret": GOOGLE_CLIENT_SECRET,
+                "redirect_uri": callback_url,
+                "grant_type": "authorization_code",
+            }
+        )
+        if token_resp.status_code != 200:
+            logger.error(f"Google token exchange failed: {token_resp.text}")
+            return RedirectResponse(url=f"{app_redirect}?error=token_exchange_failed")
+
+        token_data = token_resp.json()
+        access_token = token_data.get("access_token")
+
+        # Get user info
+        user_resp = await http_client.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        if user_resp.status_code != 200:
+            return RedirectResponse(url=f"{app_redirect}?error=userinfo_failed")
+
+        user_info = user_resp.json()
+
+    email = user_info.get("email", "").lower()
+    name = user_info.get("name", "")
+    picture = user_info.get("picture", "")
+
+    if not email:
+        return RedirectResponse(url=f"{app_redirect}?error=no_email")
+
+    # Find or create user
+    existing = await db.users.find_one({"email": email}, {"_id": 0})
+    if existing:
+        user_id = existing["user_id"]
+        await db.users.update_one(
+            {"user_id": user_id},
+            {"$set": {"name": name or existing.get("name", ""), "picture": picture}}
+        )
+    else:
+        user_id = f"user_{uuid.uuid4().hex[:12]}"
+        await db.users.insert_one({
+            "user_id": user_id, "email": email, "name": name, "picture": picture,
+            "role": "customer", "created_at": datetime.now(timezone.utc).isoformat()
+        })
+
+    jwt_access = create_access_token(user_id, email)
+    jwt_refresh = create_refresh_token(user_id)
+
+    # Redirect back to app with tokens in URL
+    params = urllib.parse.urlencode({
+        "access_token": jwt_access,
+        "refresh_token": jwt_refresh,
+    })
+    return RedirectResponse(url=f"{app_redirect}?{params}")
 
 @api_router.post("/auth/refresh")
 async def refresh_token_endpoint(data: RefreshRequest):
