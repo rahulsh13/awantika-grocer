@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Alert, KeyboardAvoidingView, Platform, Modal, ScrollView } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Alert, KeyboardAvoidingView, Platform, Modal, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
 import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES } from '../src/constants/theme';
 import { apiGet, apiPost, apiPut, apiDelete } from '../src/utils/api';
 
@@ -19,7 +20,47 @@ export default function AddressesScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
   const router = useRouter();
+
+  const detectLocation = async () => {
+    setDetectingLocation(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location permission is required to auto-detect your address.');
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const results = await Location.reverseGeocodeAsync({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      });
+      if (results && results.length > 0) {
+        const r = results[0];
+        // Build address line from available fields
+        const line1Parts = [r.streetNumber, r.street].filter(Boolean);
+        const line1 = line1Parts.join(' ') || r.name || '';
+        const line2Parts = [r.district, r.subregion].filter(Boolean);
+        const line2 = line2Parts.join(', ');
+        setForm(prev => ({
+          ...prev,
+          line1: line1 || prev.line1,
+          line2: line2 || prev.line2,
+          city: r.city || r.subregion || prev.city,
+          state: r.region || prev.state,
+          pincode: r.postalCode || prev.pincode,
+        }));
+        Alert.alert('Location Detected', 'Address fields have been filled. Please verify and complete any missing details.');
+      } else {
+        Alert.alert('Not Found', 'Could not determine address from your location. Please enter manually.');
+      }
+    } catch (e: any) {
+      Alert.alert('Error', 'Failed to detect location. Please enter address manually.');
+    } finally {
+      setDetectingLocation(false);
+    }
+  };
 
   const fetchAddresses = async () => {
     try { const d = await apiGet('/addresses'); setAddresses(d.addresses || []); } catch {}
@@ -165,6 +206,23 @@ export default function AddressesScreen() {
                 </TouchableOpacity>
               </View>
 
+              {/* Detect Location Button */}
+              <TouchableOpacity
+                testID="detect-location-btn"
+                style={styles.detectBtn}
+                onPress={detectLocation}
+                disabled={detectingLocation}
+              >
+                {detectingLocation ? (
+                  <ActivityIndicator size="small" color={COLORS.white} />
+                ) : (
+                  <Ionicons name="locate" size={18} color={COLORS.white} />
+                )}
+                <Text style={styles.detectBtnText}>
+                  {detectingLocation ? 'Detecting...' : 'Auto-detect My Location'}
+                </Text>
+              </TouchableOpacity>
+
               {/* Address Label */}
               <Text style={styles.formLabel}>Address Type</Text>
               <View style={styles.labelsRow}>
@@ -252,4 +310,6 @@ const styles = StyleSheet.create({
   defaultToggleText: { fontSize: FONT_SIZES.md, color: COLORS.textPrimary, fontWeight: '500' },
   saveBtn: { backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.md, height: 52, alignItems: 'center', justifyContent: 'center', marginTop: SPACING.sm, marginBottom: SPACING.xxl },
   saveBtnText: { color: COLORS.white, fontSize: FONT_SIZES.lg, fontWeight: '700' },
+  detectBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, backgroundColor: COLORS.accent, borderRadius: BORDER_RADIUS.md, height: 48, marginBottom: SPACING.md },
+  detectBtnText: { color: COLORS.white, fontSize: FONT_SIZES.md, fontWeight: '700' },
 });

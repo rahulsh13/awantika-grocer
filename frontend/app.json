@@ -64,6 +64,12 @@
           "photosPermission": "Allow Awantika Grocers to access your photos to upload product images.",
           "cameraPermission": "Allow Awantika Grocers to use your camera to take product photos."
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Awantika Grocers to detect your location to auto-fill your delivery address."
+        }
       ]
     ],
     "experiments": {
