@@ -60,8 +60,7 @@ function RootNavigator() {
       <Stack.Screen name="addresses" options={{ presentation: 'card' }} />
       <Stack.Screen name="admin" options={{ presentation: 'card' }} />
       <Stack.Screen name="notifications" options={{ presentation: 'card' }} />
-      <Stack.Screen name="admin-products" options={{ presentation: 'card' }} />
-      <Stack.Screen name="+not-found" />
+      <Stack.Screen name="admin-products" options={{ presentation: 'card' }} />      <Stack.Screen name="+not-found" />
     </Stack>
   );
 }

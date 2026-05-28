@@ -17,6 +17,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const { login, loginWithGoogle } = useAuth();
   const router = useRouter();
+
   const handleLogin = async () => {
     if (!email.trim() || !password) {
       Alert.alert('Error', 'Please fill in all fields');
@@ -34,11 +35,10 @@ export default function LoginScreen() {
 
   const handleGoogleLogin = async () => {
     if (!GOOGLE_CLIENT_ID) {
-      Alert.alert('Not configured', 'Google Sign-In is not set up yet. Please use email/password login.');
+      Alert.alert('Not configured', 'Google Sign-In is not set up yet. Please use email/password or phone login.');
       return;
     }
     try {
-      // Use Google's OAuth web flow — no native modules required, works in Expo Go
       const redirectUri = Linking.createURL('/auth-callback');
       const authUrl =
         `https://accounts.google.com/o/oauth2/v2/auth` +
@@ -48,22 +48,12 @@ export default function LoginScreen() {
         `&scope=${encodeURIComponent('openid email profile')}`;
 
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-
       if (result.type === 'success' && result.url) {
-        // Extract access_token from the URL fragment
         const fragment = result.url.split('#')[1] || '';
         const params = Object.fromEntries(fragment.split('&').map(p => p.split('=')));
         const accessToken = params['access_token'];
-
         if (accessToken) {
           setLoading(true);
-          // Exchange access token for user info, then send id_token to backend
-          const userInfoResp = await fetch(
-            `https://www.googleapis.com/oauth2/v3/userinfo`,
-            { headers: { Authorization: `Bearer ${accessToken}` } }
-          );
-          if (!userInfoResp.ok) throw new Error('Failed to fetch Google user info');
-          // We pass the access token; backend verifies via tokeninfo endpoint
           await loginWithGoogle(accessToken);
         }
       }
@@ -78,6 +68,7 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+
           <View style={styles.header}>
             <View style={styles.logoWrap}>
               <Image source={require('../../assets/images/icon.png')} style={styles.logoImg} resizeMode="contain" />
@@ -138,9 +129,24 @@ export default function LoginScreen() {
               <View style={styles.line} />
             </View>
 
-            <TouchableOpacity testID="google-login-btn" style={styles.googleBtn} onPress={handleGoogleLogin}>
+            {/* Phone OTP Login */}
+            <TouchableOpacity
+              testID="phone-login-btn"
+              style={styles.altBtn}
+              onPress={() => router.push('/(auth)/phone-login')}
+            >
+              <Ionicons name="phone-portrait-outline" size={20} color={COLORS.primary} />
+              <Text style={styles.altBtnText}>Continue with Phone (OTP)</Text>
+            </TouchableOpacity>
+
+            {/* Google Login */}
+            <TouchableOpacity
+              testID="google-login-btn"
+              style={[styles.altBtn, { marginTop: SPACING.sm }]}
+              onPress={handleGoogleLogin}
+            >
               <Ionicons name="logo-google" size={20} color={COLORS.textPrimary} />
-              <Text style={styles.googleText}>Continue with Google</Text>
+              <Text style={styles.altBtnText}>Continue with Google</Text>
             </TouchableOpacity>
 
             <View style={styles.footerRow}>
@@ -176,8 +182,8 @@ const styles = StyleSheet.create({
   divider: { flexDirection: 'row', alignItems: 'center', marginVertical: SPACING.xl },
   line: { flex: 1, height: 1, backgroundColor: COLORS.border },
   orText: { marginHorizontal: SPACING.lg, color: COLORS.textSecondary, fontSize: FONT_SIZES.sm },
-  googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 52, borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: COLORS.border, gap: SPACING.sm },
-  googleText: { fontSize: FONT_SIZES.md, fontWeight: '600', color: COLORS.textPrimary },
+  altBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 52, borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: COLORS.border, gap: SPACING.sm, backgroundColor: COLORS.surface },
+  altBtnText: { fontSize: FONT_SIZES.md, fontWeight: '600', color: COLORS.textPrimary },
   footerRow: { flexDirection: 'row', justifyContent: 'center', marginTop: SPACING.xl },
   footerText: { color: COLORS.textSecondary, fontSize: FONT_SIZES.md },
   linkText: { color: COLORS.primary, fontSize: FONT_SIZES.md, fontWeight: '700' },

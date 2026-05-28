@@ -17,6 +17,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   loginWithGoogle: (idToken: string) => Promise<void>;
+  loginWithPhone: (phone: string, otp: string, name?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -24,8 +25,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null, loading: true,
   login: async () => {}, register: async () => {},
-  loginWithGoogle: async () => {}, logout: async () => {},
-  refreshUser: async () => {},
+  loginWithGoogle: async () => {}, loginWithPhone: async () => {},
+  logout: async () => {}, refreshUser: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -69,6 +70,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(data.user);
   };
 
+  const loginWithPhone = async (phone: string, otp: string, name?: string) => {
+    const data = await apiPost('/auth/phone/verify-otp', { phone, otp, name });
+    await AsyncStorage.setItem('access_token', data.access_token);
+    await AsyncStorage.setItem('refresh_token', data.refresh_token);
+    setUser(data.user);
+  };
+
   const logout = async () => {
     try { await apiPost('/auth/logout'); } catch {}
     await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user']);
@@ -83,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, loginWithGoogle, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, loginWithGoogle, loginWithPhone, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

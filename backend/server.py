@@ -30,6 +30,7 @@ ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'Admin@123')
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '')
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
+FIREBASE_WEB_API_KEY = os.environ.get('FIREBASE_WEB_API_KEY', '')  # For sending SMS OTP
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -124,6 +125,14 @@ class CouponValidate(BaseModel):
 class ProfileUpdate(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
+
+class PhoneSendOTP(BaseModel):
+    phone: str  # E.164 format e.g. +919876543210
+
+class PhoneVerifyOTP(BaseModel):
+    phone: str
+    otp: str
+    name: Optional[str] = None  # required for new users
 
 class PushTokenRegister(BaseModel):
     push_token: str
@@ -359,6 +368,100 @@ async def refresh_token_endpoint(data: RefreshRequest):
         raise HTTPException(status_code=401, detail="Refresh token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+# ===== PHONE OTP AUTH =====
+def generate_otp() -> str:
+    """Generate a 6-digit OTP."""
+    import random
+    return str(random.randint(100000, 999999))
+
+@api_router.post("/auth/phone/send-otp")
+async def send_phone_otp(data: PhoneSendOTP):
+    """Send OTP to phone number via Firebase Auth REST API."""
+    phone = data.phone.strip()
+    if not phone.startswith('+'):
+        raise HTTPException(status_code=400, detail="Phone must be in E.164 format e.g. +919876543210")
+
+    otp = generate_otp()
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+
+    # Store OTP in DB (upsert — one active OTP per phone)
+    await db.phone_otps.update_one(
+        {"phone": phone},
+        {"$set": {"phone": phone, "otp": otp, "expires_at": expires_at.isoformat(), "verified": False, "attempts": 0}},
+        upsert=True
+    )
+
+    if FIREBASE_WEB_API_KEY:
+        # Send via Firebase Auth REST API
+        try:
+            async with httpx.AsyncClient() as http_client:
+                resp = await http_client.post(
+                    f"https://identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key={FIREBASE_WEB_API_KEY}",
+                    json={"phoneNumber": phone, "recaptchaToken": ""},
+                    timeout=10
+                )
+                if resp.status_code == 200:
+                    session_info = resp.json().get("sessionInfo", "")
+                    await db.phone_otps.update_one({"phone": phone}, {"$set": {"session_info": session_info}})
+                    logger.info(f"OTP sent via Firebase to {phone}")
+                    return {"message": "OTP sent successfully", "method": "firebase"}
+        except Exception as e:
+            logger.warning(f"Firebase SMS failed: {e}, falling back to log")
+
+    # Development fallback — log OTP (replace with Twilio/MSG91 in production)
+    logger.info(f"[DEV] OTP for {phone}: {otp}")
+    return {"message": "OTP sent successfully", "method": "dev", "dev_otp": otp if os.environ.get("DEBUG_OTP") else None}
+
+@api_router.post("/auth/phone/verify-otp")
+async def verify_phone_otp(data: PhoneVerifyOTP):
+    """Verify OTP and sign in / register the user."""
+    phone = data.phone.strip()
+    otp_doc = await db.phone_otps.find_one({"phone": phone}, {"_id": 0})
+
+    if not otp_doc:
+        raise HTTPException(status_code=400, detail="No OTP found for this number. Please request a new one.")
+
+    # Check attempts
+    if otp_doc.get("attempts", 0) >= 5:
+        raise HTTPException(status_code=429, detail="Too many incorrect attempts. Please request a new OTP.")
+
+    # Check expiry
+    expires_at = otp_doc["expires_at"]
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
+
+    # Verify OTP
+    if otp_doc["otp"] != data.otp.strip():
+        await db.phone_otps.update_one({"phone": phone}, {"$inc": {"attempts": 1}})
+        raise HTTPException(status_code=400, detail="Incorrect OTP. Please try again.")
+
+    # OTP valid — delete it
+    await db.phone_otps.delete_one({"phone": phone})
+
+    # Find or create user by phone
+    existing = await db.users.find_one({"phone": phone}, {"_id": 0})
+    if existing:
+        user_id = existing["user_id"]
+        email = existing.get("email", f"phone_{user_id}@awantika.app")
+    else:
+        user_id = f"user_{uuid.uuid4().hex[:12]}"
+        email = f"phone_{user_id}@awantika.app"
+        name = data.name or f"User {phone[-4:]}"
+        await db.users.insert_one({
+            "user_id": user_id, "email": email, "phone": phone,
+            "name": name, "role": "customer",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+
+    access_token = create_access_token(user_id, email)
+    refresh_token = create_refresh_token(user_id)
+    user = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
+    return {"user": user, "access_token": access_token, "refresh_token": refresh_token}
 
 # ===== CATEGORY ROUTES =====
 @api_router.get("/categories")
@@ -1140,6 +1243,8 @@ async def startup():
     await db.notifications.create_index("user_id")
     await db.notifications.create_index([("user_id", 1), ("read", 1)])
     await db.images.create_index("image_id", unique=True)
+    await db.phone_otps.create_index("phone", unique=True)
+    await db.phone_otps.create_index("expires_at", expireAfterSeconds=0)
     await seed_data()
     logger.info("Application started successfully")
 
