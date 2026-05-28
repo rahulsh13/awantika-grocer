@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES } from '../../src/constants/theme';
 import { useCart } from '../../src/context/CartContext';
+import { formatINR } from '../../src/utils/currency';
 
 export default function CartScreen() {
   const { items, total, refreshCart, updateQuantity, removeItem } = useCart();
@@ -20,7 +21,7 @@ export default function CartScreen() {
         <View style={styles.itemInfo}>
           <Text style={styles.itemName} numberOfLines={2}>{item.product.name}</Text>
           <Text style={styles.itemUnit}>per {item.product.unit}</Text>
-          <Text style={styles.itemPrice}>${ep.toFixed(2)}</Text>
+          <Text style={styles.itemPrice}>{formatINR(ep)}</Text>
         </View>
         <View style={styles.itemActions}>
           <TouchableOpacity testID={`remove-item-${item.product_id}`} onPress={() => removeItem(item.product_id)} style={styles.removeBtn}>
@@ -35,7 +36,7 @@ export default function CartScreen() {
               <Ionicons name="add" size={16} color={COLORS.primary} />
             </TouchableOpacity>
           </View>
-          <Text style={styles.subtotal}>${item.subtotal.toFixed(2)}</Text>
+          <Text style={styles.subtotal}>{formatINR(item.subtotal)}</Text>
         </View>
       </View>
     );
@@ -58,7 +59,7 @@ export default function CartScreen() {
           <View style={styles.footer}>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalPrice}>${total.toFixed(2)}</Text>
+              <Text style={styles.totalPrice}>{formatINR(total)}</Text>
             </View>
             <TouchableOpacity testID="checkout-btn" style={styles.checkoutBtn} onPress={() => router.push('/checkout')}>
               <Text style={styles.checkoutText}>Proceed to Checkout</Text>

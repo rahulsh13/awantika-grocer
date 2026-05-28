@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES } from '../src/constants/theme';
 import { apiGet, apiPost } from '../src/utils/api';
 import { useCart } from '../src/context/CartContext';
+import { formatINR } from '../src/utils/currency';
 
 export default function CheckoutScreen() {
   const [addresses, setAddresses] = useState<any[]>([]);
@@ -32,7 +33,7 @@ export default function CheckoutScreen() {
     try {
       const data = await apiPost('/coupons/validate', { code: coupon.trim(), subtotal: total });
       setDiscount(data.discount);
-      Alert.alert('Coupon Applied', `You saved $${data.discount.toFixed(2)}!`);
+      Alert.alert('Coupon Applied', `You saved ${formatINR(data.discount)}!`);
     } catch (e: any) { Alert.alert('Invalid Coupon', e.message); setDiscount(0); }
   };
 
@@ -104,16 +105,16 @@ export default function CheckoutScreen() {
         {/* Order Summary */}
         <Text style={styles.sectionTitle}>Order Summary</Text>
         <View style={styles.summaryCard}>
-          <View style={styles.summaryRow}><Text style={styles.summaryLabel}>Items ({items.length})</Text><Text style={styles.summaryVal}>${total.toFixed(2)}</Text></View>
-          {discount > 0 && <View style={styles.summaryRow}><Text style={[styles.summaryLabel, { color: COLORS.success }]}>Discount</Text><Text style={[styles.summaryVal, { color: COLORS.success }]}>-${discount.toFixed(2)}</Text></View>}
+          <View style={styles.summaryRow}><Text style={styles.summaryLabel}>Items ({items.length})</Text><Text style={styles.summaryVal}>{formatINR(total)}</Text></View>
+          {discount > 0 && <View style={styles.summaryRow}><Text style={[styles.summaryLabel, { color: COLORS.success }]}>Discount</Text><Text style={[styles.summaryVal, { color: COLORS.success }]}>-{formatINR(discount)}</Text></View>}
           <View style={styles.summaryRow}><Text style={styles.summaryLabel}>Delivery</Text><Text style={[styles.summaryVal, { color: COLORS.success }]}>FREE</Text></View>
-          <View style={[styles.summaryRow, styles.totalRow]}><Text style={styles.totalLabel}>Total</Text><Text style={styles.totalVal}>${finalTotal.toFixed(2)}</Text></View>
+          <View style={[styles.summaryRow, styles.totalRow]}><Text style={styles.totalLabel}>Total</Text><Text style={styles.totalVal}>{formatINR(finalTotal)}</Text></View>
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
         <TouchableOpacity testID="place-order-btn" style={[styles.placeBtn, loading && { opacity: 0.6 }]} onPress={handlePlaceOrder} disabled={loading}>
-          <Text style={styles.placeBtnText}>{loading ? 'Placing Order...' : `Place Order - $${finalTotal.toFixed(2)}`}</Text>
+          <Text style={styles.placeBtnText}>{loading ? 'Placing Order...' : `Place Order - ${formatINR(finalTotal)}`}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

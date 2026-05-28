@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES } from '../src/constants/theme';
 import { apiGet } from '../src/utils/api';
+import { formatINR } from '../src/utils/currency';
 
 const STATUS_COLORS: Record<string, string> = { pending: '#F59E0B', confirmed: '#3B82F6', delivered: '#22C55E', cancelled: '#EF4444' };
 
@@ -44,7 +45,7 @@ export default function OrdersScreen() {
             <Text style={styles.date}>{new Date(item.created_at).toLocaleDateString()}</Text>
             <Text style={styles.itemCount}>{item.items?.length || 0} items</Text>
             <View style={styles.cardFooter}>
-              <Text style={styles.total}>${item.total?.toFixed(2)}</Text>
+              <Text style={styles.total}>{formatINR(item.total)}</Text>
               <Text style={styles.payMethod}>{item.payment_method === 'cod' ? 'Cash on Delivery' : 'Online Payment'}</Text>
             </View>
           </TouchableOpacity>

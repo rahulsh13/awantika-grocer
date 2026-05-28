@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES } from '../../src/constants/theme';
 import { apiGet } from '../../src/utils/api';
 import LoadingScreen from '../../src/components/LoadingScreen';
+import { formatINR } from '../../src/utils/currency';
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -40,16 +41,16 @@ export default function OrderDetailScreen() {
             <Image source={{ uri: item.image || 'https://via.placeholder.com/50' }} style={styles.itemImg} resizeMode="cover" />
             <View style={{ flex: 1 }}>
               <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemMeta}>{item.quantity} x ${item.effective_price?.toFixed(2)}</Text>
+              <Text style={styles.itemMeta}>{item.quantity} x {formatINR(item.effective_price)}</Text>
             </View>
-            <Text style={styles.itemTotal}>${item.subtotal?.toFixed(2)}</Text>
+            <Text style={styles.itemTotal}>{formatINR(item.subtotal)}</Text>
           </View>
         ))}
         <View style={styles.summaryCard}>
-          <View style={styles.sRow}><Text style={styles.sLabel}>Subtotal</Text><Text style={styles.sVal}>${order.subtotal?.toFixed(2)}</Text></View>
-          {order.discount > 0 && <View style={styles.sRow}><Text style={[styles.sLabel, { color: COLORS.success }]}>Discount</Text><Text style={[styles.sVal, { color: COLORS.success }]}>-${order.discount.toFixed(2)}</Text></View>}
+          <View style={styles.sRow}><Text style={styles.sLabel}>Subtotal</Text><Text style={styles.sVal}>{formatINR(order.subtotal)}</Text></View>
+          {order.discount > 0 && <View style={styles.sRow}><Text style={[styles.sLabel, { color: COLORS.success }]}>Discount</Text><Text style={[styles.sVal, { color: COLORS.success }]}>-{formatINR(order.discount)}</Text></View>}
           <View style={[styles.sRow, { borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: SPACING.sm }]}>
-            <Text style={styles.totalLabel}>Total</Text><Text style={styles.totalVal}>${order.total?.toFixed(2)}</Text>
+            <Text style={styles.totalLabel}>Total</Text><Text style={styles.totalVal}>{formatINR(order.total)}</Text>
           </View>
         </View>
         <Text style={styles.sectionTitle}>Delivery Address</Text>

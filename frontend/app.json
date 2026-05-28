@@ -25,12 +25,13 @@
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
-        "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE",
-        "NOTIFICATIONS",
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.NOTIFICATIONS",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -67,6 +68,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "185a4320-4f09-4e56-a4a6-b567b9b86b2a"
+      }
     }
   }
 }

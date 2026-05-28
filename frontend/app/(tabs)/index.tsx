@@ -44,7 +44,6 @@ export default function HomeScreen() {
   const handleAddToCart = async (productId: string) => {
     try {
       await addItem(productId);
-      Alert.alert('Added', 'Item added to cart');
     } catch (e: any) { Alert.alert('Error', e.message); }
   };
 

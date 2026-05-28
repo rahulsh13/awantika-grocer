@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES } from '../src/constants/theme';
 import { apiGet, apiPut, apiPost } from '../src/utils/api';
 import { useAuth } from '../src/context/AuthContext';
+import { formatINR } from '../src/utils/currency';
 
 export default function AdminScreen() {
   const [dashboard, setDashboard] = useState<any>({});
@@ -59,7 +60,7 @@ export default function AdminScreen() {
           <>
             <View style={styles.statsGrid}>
               <StatCard label="Total Orders" value={dashboard.total_orders || 0} icon="receipt" color="#3B82F6" />
-              <StatCard label="Revenue" value={`$${(dashboard.total_revenue || 0).toFixed(0)}`} icon="cash" color="#22C55E" />
+              <StatCard label="Revenue" value={formatINR(dashboard.total_revenue || 0)} icon="cash" color="#22C55E" />
               <StatCard label="Products" value={dashboard.total_products || 0} icon="cube" color="#8B5CF6" />
               <StatCard label="Customers" value={dashboard.total_users || 0} icon="people" color="#F59E0B" />
             </View>
@@ -102,7 +103,7 @@ export default function AdminScreen() {
                 <Text style={styles.orderStatus}>{order.status?.toUpperCase()}</Text>
               </View>
               <Text style={styles.orderDate}>{new Date(order.created_at).toLocaleString()}</Text>
-              <Text style={styles.orderTotal}>${order.total?.toFixed(2)} - {order.items?.length || 0} items</Text>
+              <Text style={styles.orderTotal}>{formatINR(order.total)} - {order.items?.length || 0} items</Text>
               <View style={styles.actionRow}>
                 {order.status === 'pending' && (
                   <TouchableOpacity testID={`confirm-${order.order_id}`} style={[styles.actionBtn, { backgroundColor: '#3B82F6' }]} onPress={() => updateOrderStatus(order.order_id, 'confirmed')}>

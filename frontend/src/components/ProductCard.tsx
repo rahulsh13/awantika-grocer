@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES } from '../constants/theme';
+import { formatINR } from '../utils/currency';
 
 interface Props {
   product: {
@@ -38,9 +39,9 @@ export default function ProductCard({ product, onPress, onAddToCart, onIncrement
         <Text style={styles.unit}>per {product.unit}</Text>
         <View style={styles.priceRow}>
           <View>
-            <Text style={styles.price}>${effectivePrice.toFixed(2)}</Text>
+            <Text style={styles.price}>{formatINR(effectivePrice)}</Text>
             {product.discount > 0 && (
-              <Text style={styles.oldPrice}>${product.price.toFixed(2)}</Text>
+              <Text style={styles.oldPrice}>{formatINR(product.price)}</Text>
             )}
           </View>
           {product.stock > 0 && (

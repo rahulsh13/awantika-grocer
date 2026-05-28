@@ -7,6 +7,7 @@ import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES } from '../../src/constants/
 import { apiGet } from '../../src/utils/api';
 import { useCart } from '../../src/context/CartContext';
 import LoadingScreen from '../../src/components/LoadingScreen';
+import { formatINR } from '../../src/utils/currency';
 
 interface Variant {
   label: string;
@@ -57,7 +58,6 @@ export default function ProductDetailScreen() {
   const handleAddToCart = async () => {
     try {
       await addItem(product.product_id, quantity, selectedVariant?.label || '');
-      Alert.alert('Added!', `${quantity}x ${product.name}${selectedVariant ? ` (${selectedVariant.label})` : ''} added to cart`);
     } catch (e: any) {
       Alert.alert('Error', e.message);
     }
@@ -87,9 +87,9 @@ export default function ProductDetailScreen() {
           <Text style={styles.name}>{product.name}</Text>
 
           <View style={styles.priceRow}>
-            <Text style={styles.price}>${effectivePrice.toFixed(2)}</Text>
+            <Text style={styles.price}>{formatINR(effectivePrice)}</Text>
             {activeDiscount > 0 && (
-              <Text style={styles.oldPrice}>${activePrice.toFixed(2)}</Text>
+              <Text style={styles.oldPrice}>{formatINR(activePrice)}</Text>
             )}
             {!hasVariants && (
               <Text style={styles.unit}>per {product.unit}</Text>
@@ -125,7 +125,7 @@ export default function ProductDetailScreen() {
                         {v.label}
                       </Text>
                       <Text style={[styles.variantPrice, isSelected && styles.variantPriceSelected, outOfStock && styles.variantLabelDisabled]}>
-                        ${vEffectivePrice.toFixed(2)}
+                        {formatINR(vEffectivePrice)}
                       </Text>
                       {outOfStock && (
                         <Text style={styles.outOfStockTag}>Out</Text>
@@ -165,7 +165,7 @@ export default function ProductDetailScreen() {
           <TouchableOpacity testID="add-to-cart-btn" style={styles.addBtn} onPress={handleAddToCart}>
             <Ionicons name="cart" size={20} color={COLORS.white} />
             <Text style={styles.addBtnText}>
-              Add to Cart — ${(effectivePrice * quantity).toFixed(2)}
+              Add to Cart — {formatINR(effectivePrice * quantity)}
             </Text>
           </TouchableOpacity>
         </View>

@@ -17,7 +17,6 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const { login, loginWithGoogle } = useAuth();
   const router = useRouter();
-
   const handleLogin = async () => {
     if (!email.trim() || !password) {
       Alert.alert('Error', 'Please fill in all fields');

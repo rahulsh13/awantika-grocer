@@ -60,24 +60,62 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
+  // Optimistic add — update UI instantly, sync with server in background
   const addItem = async (productId: string, quantity = 1, variantLabel = '') => {
-    await apiPost('/cart/add', { product_id: productId, quantity, variant_label: variantLabel });
-    await refreshCart();
+    setItems(prev => {
+      const existing = prev.find(i => i.product_id === productId && (i.variant_label || '') === variantLabel);
+      if (existing) {
+        return prev.map(i =>
+          i.product_id === productId && (i.variant_label || '') === variantLabel
+            ? { ...i, quantity: i.quantity + quantity }
+            : i
+        );
+      }
+      // Add placeholder item — will be replaced by refreshCart
+      return [...prev, {
+        product_id: productId,
+        quantity,
+        variant_label: variantLabel,
+        product: { product_id: productId, name: '', price: 0, discount: 0, images: [], unit: '' },
+        subtotal: 0,
+      }];
+    });
+    // Sync with server, then refresh to get correct product details & subtotals
+    apiPost('/cart/add', { product_id: productId, quantity, variant_label: variantLabel })
+      .then(() => refreshCart())
+      .catch(() => refreshCart()); // revert on error
   };
 
+  // Optimistic update — change quantity instantly
   const updateQuantity = async (productId: string, quantity: number, variantLabel = '') => {
-    await apiPut('/cart/update', { product_id: productId, quantity, variant_label: variantLabel });
-    await refreshCart();
+    if (quantity <= 0) {
+      return removeItem(productId, variantLabel);
+    }
+    setItems(prev =>
+      prev.map(i =>
+        i.product_id === productId && (i.variant_label || '') === variantLabel
+          ? { ...i, quantity }
+          : i
+      )
+    );
+    apiPut('/cart/update', { product_id: productId, quantity, variant_label: variantLabel })
+      .then(() => refreshCart())
+      .catch(() => refreshCart());
   };
 
+  // Optimistic remove — remove instantly from UI
   const removeItem = async (productId: string, variantLabel = '') => {
-    await apiDelete(`/cart/remove/${productId}?variant_label=${encodeURIComponent(variantLabel)}`);
-    await refreshCart();
+    setItems(prev =>
+      prev.filter(i => !(i.product_id === productId && (i.variant_label || '') === variantLabel))
+    );
+    apiDelete(`/cart/remove/${productId}?variant_label=${encodeURIComponent(variantLabel)}`)
+      .then(() => refreshCart())
+      .catch(() => refreshCart());
   };
 
   const clearCart = async () => {
-    await apiDelete('/cart/clear');
     setItems([]); setTotal(0);
+    await apiDelete('/cart/clear');
   };
 
   const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
