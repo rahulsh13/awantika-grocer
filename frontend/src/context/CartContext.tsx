@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { apiGet, apiPost, apiPut, apiDelete } from '../utils/api';
 import { useAuth } from './AuthContext';
 
@@ -46,13 +46,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
+  // Track pending sync operations — don't let refreshCart overwrite
+  // optimistic state while user is still tapping
+  const pendingOps = useRef(0);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const refreshCart = useCallback(async () => {
     if (!user) { setItems([]); setTotal(0); return; }
     try {
       setLoading(true);
       const data = await apiGet('/cart');
-      setItems(data.items || []);
-      setTotal(data.total || 0);
+      // Only apply server state if no pending optimistic ops
+      if (pendingOps.current === 0) {
+        setItems(data.items || []);
+        setTotal(data.total || 0);
+      }
     } catch {
       setItems([]); setTotal(0);
     } finally {
@@ -60,8 +68,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  // Optimistic add — update UI instantly, sync with server in background
+  // Debounced refresh — waits 800ms after last tap before syncing from server
+  const scheduleRefresh = useCallback(() => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(async () => {
+      pendingOps.current = 0;
+      await refreshCart();
+    }, 800);
+  }, [refreshCart]);
+
+  // Optimistic add — update UI instantly
   const addItem = async (productId: string, quantity = 1, variantLabel = '') => {
+    pendingOps.current += 1;
     setItems(prev => {
       const existing = prev.find(i => i.product_id === productId && (i.variant_label || '') === variantLabel);
       if (existing) {
@@ -71,7 +89,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             : i
         );
       }
-      // Add placeholder item — will be replaced by refreshCart
       return [...prev, {
         product_id: productId,
         quantity,
@@ -80,17 +97,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         subtotal: 0,
       }];
     });
-    // Sync with server, then refresh to get correct product details & subtotals
     apiPost('/cart/add', { product_id: productId, quantity, variant_label: variantLabel })
-      .then(() => refreshCart())
-      .catch(() => refreshCart()); // revert on error
+      .catch(() => {})
+      .finally(() => scheduleRefresh());
   };
 
-  // Optimistic update — change quantity instantly
+  // Optimistic update — change quantity instantly, debounce server sync
   const updateQuantity = async (productId: string, quantity: number, variantLabel = '') => {
     if (quantity <= 0) {
       return removeItem(productId, variantLabel);
     }
+    pendingOps.current += 1;
     setItems(prev =>
       prev.map(i =>
         i.product_id === productId && (i.variant_label || '') === variantLabel
@@ -99,18 +116,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       )
     );
     apiPut('/cart/update', { product_id: productId, quantity, variant_label: variantLabel })
-      .then(() => refreshCart())
-      .catch(() => refreshCart());
+      .catch(() => {})
+      .finally(() => scheduleRefresh());
   };
 
-  // Optimistic remove — remove instantly from UI
+  // Optimistic remove
   const removeItem = async (productId: string, variantLabel = '') => {
+    pendingOps.current += 1;
     setItems(prev =>
       prev.filter(i => !(i.product_id === productId && (i.variant_label || '') === variantLabel))
     );
     apiDelete(`/cart/remove/${productId}?variant_label=${encodeURIComponent(variantLabel)}`)
-      .then(() => refreshCart())
-      .catch(() => refreshCart());
+      .catch(() => {})
+      .finally(() => scheduleRefresh());
   };
 
   const clearCart = async () => {

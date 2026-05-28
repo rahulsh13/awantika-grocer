@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES } from '../src/constants/theme';
@@ -20,13 +21,23 @@ export default function CheckoutScreen() {
 
   useEffect(() => {
     refreshCart();
-    apiGet('/addresses').then(d => {
-      setAddresses(d.addresses || []);
-      const def = d.addresses?.find((a: any) => a.is_default);
-      if (def) setSelectedAddr(def.address_id);
-      else if (d.addresses?.length) setSelectedAddr(d.addresses[0].address_id);
-    }).catch(() => {});
   }, [refreshCart]);
+
+  // Reload addresses every time this screen comes into focus
+  // so newly added addresses appear without needing to go back twice
+  useFocusEffect(
+    useCallback(() => {
+      apiGet('/addresses').then(d => {
+        const addrs = d.addresses || [];
+        setAddresses(addrs);
+        if (!selectedAddr) {
+          const def = addrs.find((a: any) => a.is_default);
+          if (def) setSelectedAddr(def.address_id);
+          else if (addrs.length) setSelectedAddr(addrs[0].address_id);
+        }
+      }).catch(() => {});
+    }, [selectedAddr])
+  );
 
   const handleApplyCoupon = async () => {
     if (!coupon.trim()) return;
