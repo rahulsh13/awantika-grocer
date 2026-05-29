@@ -10,7 +10,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import ProductCard from '../../src/components/ProductCard';
 import CategoryCard from '../../src/components/CategoryCard';
 
-const LOGO_URL = require('../../assets/images/icon.png');
+const LOGO_URL = require('../../assets/images/logo.png');
 
 const BANNERS = [
   { id: '1', image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600', title: 'Fresh Organic Vegetables', subtitle: 'Up to 20% off' },
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.xl, paddingTop: SPACING.md, paddingBottom: SPACING.sm },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  headerLogo: { width: 36, height: 36, borderRadius: 18 },
+  headerLogo: { width: 40, height: 40, borderRadius: 8, backgroundColor: '#000' },
   greeting: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary },
   headerTitle: { fontSize: FONT_SIZES.xxl, fontWeight: '800', color: COLORS.primary, letterSpacing: -0.5 },
   iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.muted, alignItems: 'center', justifyContent: 'center' },

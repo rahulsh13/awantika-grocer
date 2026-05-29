@@ -117,7 +117,7 @@ export default function PhoneLoginScreen() {
               <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
             </TouchableOpacity>
             <View style={styles.logoWrap}>
-              <Image source={require('../../assets/images/icon.png')} style={styles.logoImg} resizeMode="contain" />
+              <Image source={require('../../assets/images/logo.png')} style={styles.logoImg} resizeMode="contain" />
             </View>
             <Text style={styles.title}>
               {step === 'phone' ? 'Login with Phone' : step === 'otp' ? 'Enter OTP' : 'Your Name'}
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, padding: SPACING.xl },
   header: { alignItems: 'center', marginTop: 20, marginBottom: 40 },
   backBtn: { alignSelf: 'flex-start', marginBottom: SPACING.lg },
-  logoWrap: { width: 64, height: 64, borderRadius: 32, backgroundColor: COLORS.muted, alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.md, overflow: 'hidden' },
+  logoWrap: { width: 64, height: 64, borderRadius: 12, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.md, overflow: 'hidden' },
   logoImg: { width: 64, height: 64 },
   title: { fontSize: FONT_SIZES.xxl, fontWeight: '800', color: COLORS.primary, letterSpacing: -0.5 },
   subtitle: { fontSize: FONT_SIZES.md, color: COLORS.textSecondary, marginTop: SPACING.xs, textAlign: 'center' },

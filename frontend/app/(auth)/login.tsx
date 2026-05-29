@@ -105,7 +105,7 @@ export default function LoginScreen() {
 
           <View style={styles.header}>
             <View style={styles.logoWrap}>
-              <Image source={require('../../assets/images/icon.png')} style={styles.logoImg} resizeMode="contain" />
+              <Image source={require('../../assets/images/logo.png')} style={styles.logoImg} resizeMode="contain" />
             </View>
             <Text style={styles.title}>Awantika Grocers</Text>
             <Text style={styles.subtitle}>Fresh groceries delivered to your door</Text>
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { flexGrow: 1, padding: SPACING.xl },
   header: { alignItems: 'center', marginTop: 40, marginBottom: 40 },
-  logoWrap: { width: 72, height: 72, borderRadius: 36, backgroundColor: COLORS.muted, alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.md, overflow: 'hidden' },
+  logoWrap: { width: 72, height: 72, borderRadius: 16, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.md, overflow: 'hidden' },
   logoImg: { width: 72, height: 72 },
   title: { fontSize: FONT_SIZES.title, fontWeight: '800', color: COLORS.primary, letterSpacing: -1 },
   subtitle: { fontSize: FONT_SIZES.md, color: COLORS.textSecondary, marginTop: SPACING.xs },

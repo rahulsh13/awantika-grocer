@@ -10,8 +10,8 @@ function RootNavigator() {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
-  const notifListener = useRef<any>();
-  const responseListener = useRef<any>();
+  const notifListener = useRef<any>(null);
+  const responseListener = useRef<any>(null);
 
   useEffect(() => {
     if (loading) return;
