@@ -70,7 +70,8 @@
         {
           "locationWhenInUsePermission": "Allow Awantika Grocers to detect your location to auto-fill your delivery address."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
