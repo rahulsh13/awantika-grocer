@@ -46,42 +46,55 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
-  // Track pending sync operations — don't let refreshCart overwrite
-  // optimistic state while user is still tapping
+  // pendingOps counts how many optimistic mutations are still in-flight.
+  // refreshCart will NOT overwrite local state while this is > 0.
   const pendingOps = useRef(0);
+  // debounce timer — reset on every new mutation, fires sync after quiet period
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // keep a stable ref to the latest user so refreshCart closure is never stale
+  const userRef = useRef(user);
+  userRef.current = user;
 
   const refreshCart = useCallback(async () => {
-    if (!user) { setItems([]); setTotal(0); return; }
+    if (!userRef.current) { setItems([]); setTotal(0); return; }
+    // If there are still pending ops, skip — the timer will fire again after
+    // the next op completes
+    if (pendingOps.current > 0) return;
     try {
       setLoading(true);
       const data = await apiGet('/cart');
-      // Only apply server state if no pending optimistic ops
+      // Double-check after the async gap — a new tap may have arrived
       if (pendingOps.current === 0) {
         setItems(data.items || []);
         setTotal(data.total || 0);
       }
     } catch {
-      setItems([]); setTotal(0);
+      // Don't wipe local state on network error
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, []); // stable — uses userRef, no deps needed
 
-  // Debounced refresh — waits 800ms after last tap before syncing from server
-  const scheduleRefresh = useCallback(() => {
+  // Schedule a server sync 1s after the last mutation completes.
+  // Each completed op decrements pendingOps; sync only runs when it hits 0.
+  const onOpComplete = useCallback(() => {
+    pendingOps.current = Math.max(0, pendingOps.current - 1);
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    refreshTimerRef.current = setTimeout(async () => {
-      pendingOps.current = 0;
-      await refreshCart();
-    }, 800);
+    refreshTimerRef.current = setTimeout(() => {
+      // Only sync if all ops have settled
+      if (pendingOps.current === 0) {
+        refreshCart();
+      }
+    }, 1000);
   }, [refreshCart]);
 
-  // Optimistic add — update UI instantly
+  // Optimistic add — update UI instantly, sync after quiet period
   const addItem = async (productId: string, quantity = 1, variantLabel = '') => {
     pendingOps.current += 1;
     setItems(prev => {
-      const existing = prev.find(i => i.product_id === productId && (i.variant_label || '') === variantLabel);
+      const existing = prev.find(
+        i => i.product_id === productId && (i.variant_label || '') === variantLabel
+      );
       if (existing) {
         return prev.map(i =>
           i.product_id === productId && (i.variant_label || '') === variantLabel
@@ -99,10 +112,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
     apiPost('/cart/add', { product_id: productId, quantity, variant_label: variantLabel })
       .catch(() => {})
-      .finally(() => scheduleRefresh());
+      .finally(onOpComplete);
   };
 
-  // Optimistic update — change quantity instantly, debounce server sync
+  // Optimistic update — set quantity instantly, sync after quiet period
   const updateQuantity = async (productId: string, quantity: number, variantLabel = '') => {
     if (quantity <= 0) {
       return removeItem(productId, variantLabel);
@@ -117,18 +130,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
     apiPut('/cart/update', { product_id: productId, quantity, variant_label: variantLabel })
       .catch(() => {})
-      .finally(() => scheduleRefresh());
+      .finally(onOpComplete);
   };
 
   // Optimistic remove
   const removeItem = async (productId: string, variantLabel = '') => {
     pendingOps.current += 1;
     setItems(prev =>
-      prev.filter(i => !(i.product_id === productId && (i.variant_label || '') === variantLabel))
+      prev.filter(
+        i => !(i.product_id === productId && (i.variant_label || '') === variantLabel)
+      )
     );
     apiDelete(`/cart/remove/${productId}?variant_label=${encodeURIComponent(variantLabel)}`)
       .catch(() => {})
-      .finally(() => scheduleRefresh());
+      .finally(onOpComplete);
   };
 
   const clearCart = async () => {
@@ -139,12 +154,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
 
   const getItemQuantity = useCallback((productId: string, variantLabel = '') => {
-    const item = items.find(i => i.product_id === productId && (i.variant_label || '') === variantLabel);
+    const item = items.find(
+      i => i.product_id === productId && (i.variant_label || '') === variantLabel
+    );
     return item ? item.quantity : 0;
   }, [items]);
 
   return (
-    <CartContext.Provider value={{ items, total, loading, itemCount, refreshCart, addItem, updateQuantity, removeItem, clearCart, getItemQuantity }}>
+    <CartContext.Provider value={{
+      items, total, loading, itemCount,
+      refreshCart, addItem, updateQuantity, removeItem, clearCart, getItemQuantity,
+    }}>
       {children}
     </CartContext.Provider>
   );
