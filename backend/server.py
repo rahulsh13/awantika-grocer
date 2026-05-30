@@ -19,11 +19,19 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
 
 # ===== ENVIRONMENT & DATABASE =====
-mongo_url = os.environ['MONGO_URL']
+mongo_url = os.environ.get('MONGO_URL', '')
+if not mongo_url:
+    raise RuntimeError(
+        "MONGO_URL environment variable is not set. "
+        "Please configure it in your Railway (or local .env) settings."
+    )
+
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ.get('DB_NAME', 'test_database')]
 
-JWT_SECRET = os.environ['JWT_SECRET']
+JWT_SECRET = os.environ.get('JWT_SECRET', '')
+if not JWT_SECRET:
+    raise RuntimeError("JWT_SECRET environment variable is not set.")
 JWT_ALGORITHM = "HS256"
 ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@freshmart.com')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'Admin@123')
