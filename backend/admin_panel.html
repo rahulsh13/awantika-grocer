@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Awantika Grocers — Admin</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #1E3F20; --primary-light: #2D5F30; --accent: #E05236;
+  --bg: #F4F6F8; --surface: #fff; --border: #E0E0E0;
+  --text: #1a1a1a; --muted: #6b7280; --success: #22c55e;
+  --warning: #f59e0b; --danger: #ef4444; --radius: 10px;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* AUTH */
+#auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+.auth-box { background: var(--surface); border-radius: 16px; padding: 40px; width: 380px; box-shadow: 0 4px 24px rgba(0,0,0,.10); }
+.auth-box h1 { color: var(--primary); font-size: 24px; margin-bottom: 4px; }
+.auth-box p { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+
+/* LAYOUT */
+#app { display: none; }
+.sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 220px; background: var(--primary); color: #fff; padding: 0; overflow-y: auto; z-index: 100; }
+.sidebar-logo { padding: 24px 20px 16px; border-bottom: 1px solid rgba(255,255,255,.15); }
+.sidebar-logo h2 { font-size: 16px; font-weight: 700; }
+.sidebar-logo p { font-size: 11px; opacity: .6; margin-top: 2px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 12px 20px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background .15s; color: rgba(255,255,255,.8); }
+.nav-item:hover, .nav-item.active { background: rgba(255,255,255,.12); color: #fff; }
+.nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+.nav-section { padding: 16px 20px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; opacity: .5; text-transform: uppercase; }
+.sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,.15); margin-top: auto; }
+.sidebar-footer button { background: none; border: 1px solid rgba(255,255,255,.3); color: rgba(255,255,255,.8); padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; width: 100%; }
+.sidebar-footer button:hover { background: rgba(255,255,255,.1); }
+.main { margin-left: 220px; padding: 28px; min-height: 100vh; }
+.page { display: none; }
+.page.active { display: block; }
+.page-title { font-size: 22px; font-weight: 700; color: var(--primary); margin-bottom: 6px; }
+.page-sub { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+
+/* STATS */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.stat-card { background: var(--surface); border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); }
+.stat-card .stat-label { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+.stat-card .stat-value { font-size: 28px; font-weight: 800; color: var(--primary); margin-top: 6px; }
+.stat-card .stat-icon { font-size: 24px; float: right; margin-top: -4px; }
+
+/* TABLES */
+.card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; margin-bottom: 24px; }
+.card-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.card-header h3 { font-size: 15px; font-weight: 700; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: #f9fafb; padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); border-bottom: 1px solid var(--border); }
+td { padding: 12px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #fafafa; }
+.product-img { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; background: #eee; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.badge-green { background: #dcfce7; color: #16a34a; }
+.badge-yellow { background: #fef9c3; color: #ca8a04; }
+.badge-red { background: #fee2e2; color: #dc2626; }
+.badge-blue { background: #dbeafe; color: #2563eb; }
+.badge-gray { background: #f3f4f6; color: #4b5563; }
+
+/* FORMS */
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; transition: border .15s; font-family: inherit; background: #fff; }
+input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+textarea { resize: vertical; min-height: 80px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.checkbox-group { display: flex; align-items: center; gap: 8px; }
+.checkbox-group input { width: auto; }
+
+/* BUTTONS */
+.btn { padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 700; transition: opacity .15s; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-light); }
+.btn-accent { background: var(--accent); color: #fff; }
+.btn-accent:hover:not(:disabled) { opacity: .85; }
+.btn-ghost { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+.btn-ghost:hover { background: #f0f7f0; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-sm { padding: 5px 11px; font-size: 12px; }
+.btn-icon { padding: 6px 8px; font-size: 14px; }
+
+/* MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--surface); border-radius: 14px; width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
+.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px 0; }
+.modal-header h3 { font-size: 18px; font-weight: 700; }
+.modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); line-height: 1; }
+.modal-body { padding: 20px 24px 24px; }
+
+/* SEARCH / FILTERS */
+.toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
+.toolbar input { flex: 1; min-width: 200px; }
+.toolbar select { width: 180px; }
+
+/* MISC */
+.empty { text-align: center; padding: 48px; color: var(--muted); }
+.toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; z-index: 999; transform: translateY(100px); opacity: 0; transition: all .3s; }
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast-success { background: #1a3f1c; color: #fff; }
+.toast-error { background: var(--danger); color: #fff; }
+.tag-input-wrap { display: flex; flex-wrap: wrap; gap: 6px; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; min-height: 44px; cursor: text; }
+.tag { background: #e8f0e9; color: var(--primary); padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+.tag button { background: none; border: none; cursor: pointer; color: var(--primary); font-size: 14px; line-height: 1; }
+.tag-input-wrap input { border: none; outline: none; flex: 1; min-width: 120px; padding: 2px 4px; font-size: 13px; }
+.spinner { border: 3px solid #e5e7eb; border-top-color: var(--primary); border-radius: 50%; width: 20px; height: 20px; animation: spin .6s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-row td { text-align: center; padding: 32px; }
+.order-status-select { padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border); font-size: 12px; font-weight: 700; cursor: pointer; }
+.variants-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.variant-row { display: grid; grid-template-columns: 2fr 1.5fr 1fr 1fr auto; gap: 8px; align-items: center; }
+.variant-row input { padding: 7px 10px; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <h1>🌿 Awantika Grocers</h1>
+    <p>Admin Panel — Sign in to continue</p>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="admin@freshmart.com" />
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" />
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:12px" onclick="doLogin()" id="login-btn">Sign In</button>
+    <p id="login-error" style="color:var(--danger);font-size:13px;margin-top:12px;display:none"></p>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <h2>🌿 Awantika Grocers</h2>
+      <p>Admin Panel</p>
+    </div>
+    <div class="nav-section">Overview</div>
+    <div class="nav-item active" onclick="showPage('dashboard',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-section">Catalogue</div>
+    <div class="nav-item" onclick="showPage('products',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      Products
+    </div>
+    <div class="nav-item" onclick="showPage('categories',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+      Categories
+    </div>
+    <div class="nav-section">Commerce</div>
+    <div class="nav-item" onclick="showPage('orders',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+      Orders
+    </div>
+    <div class="nav-item" onclick="showPage('coupons',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>
+      Coupons
+    </div>
+    <div class="nav-section">Users</div>
+    <div class="nav-item" onclick="showPage('users',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+      Users
+    </div>
+    <div style="flex:1"></div>
+    <div class="sidebar-footer">
+      <button onclick="logout()">Sign Out</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub">Welcome back, Admin</div>
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card"><div class="stat-icon">📦</div><div class="stat-label">Total Orders</div><div class="stat-value" id="stat-orders">—</div></div>
+        <div class="stat-card"><div class="stat-icon">🛍️</div><div class="stat-label">Products</div><div class="stat-value" id="stat-products">—</div></div>
+        <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-label">Users</div><div class="stat-value" id="stat-users">—</div></div>
+        <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-label">Revenue</div><div class="stat-value" id="stat-revenue">—</div></div>
+        <div class="stat-card"><div class="stat-icon">⏳</div><div class="stat-label">Pending Orders</div><div class="stat-value" id="stat-pending">—</div></div>
+      </div>
+    </div>
+
+    <!-- PRODUCTS -->
+    <div class="page" id="page-products">
+      <div class="page-title">Products</div>
+      <div class="page-sub">Manage your product catalogue</div>
+      <div class="toolbar">
+        <input type="text" id="product-search" placeholder="Search products..." oninput="filterProducts()" />
+        <select id="product-cat-filter" onchange="filterProducts()"><option value="">All Categories</option></select>
+        <button class="btn btn-primary" onclick="openProductModal()">+ Add Product</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Image</th><th>Name</th><th>Category</th><th>Price</th><th>Discount</th><th>Stock</th><th>Featured</th><th>Actions</th></tr></thead>
+            <tbody id="products-tbody"><tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CATEGORIES -->
+    <div class="page" id="page-categories">
+      <div class="page-title">Categories</div>
+      <div class="page-sub">Manage product categories</div>
+      <div style="margin-bottom:16px"><button class="btn btn-primary" onclick="openCategoryModal()">+ Add Category</button></div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Image</th><th>Name</th><th>Description</th><th>Order</th><th>Actions</th></tr></thead>
+            <tbody id="categories-tbody"><tr><td colspan="5" class="loading-row"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ORDERS -->
+    <div class="page" id="page-orders">
+      <div class="page-title">Orders</div>
+      <div class="page-sub">Track and manage customer orders</div>
+      <div class="toolbar">
+        <select id="order-status-filter" onchange="loadOrders()">
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="shipped">Shipped</option>
+          <option value="delivered">Delivered</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Order ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th><th>Update</th></tr></thead>
+            <tbody id="orders-tbody"><tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- COUPONS -->
+    <div class="page" id="page-coupons">
+      <div class="page-title">Coupons</div>
+      <div class="page-sub">Manage discount coupons</div>
+      <div style="margin-bottom:16px"><button class="btn btn-primary" onclick="openCouponModal()">+ Add Coupon</button></div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Code</th><th>Discount</th><th>Min Order</th><th>Max Discount</th><th>Status</th></tr></thead>
+            <tbody id="coupons-tbody"><tr><td colspan="5" class="loading-row"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div class="page" id="page-users">
+      <div class="page-title">Users</div>
+      <div class="page-sub">Registered customers</div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Joined</th></tr></thead>
+            <tbody id="users-tbody"><tr><td colspan="5" class="loading-row"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- PRODUCT MODAL -->
+<div class="modal-overlay" id="product-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="product-modal-title">Add Product</h3>
+      <button class="modal-close" onclick="closeModal('product-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="p-id" />
+      <div class="form-row">
+        <div class="form-group">
+          <label>Name *</label>
+          <input type="text" id="p-name" placeholder="e.g. Fresh Tomatoes" />
+        </div>
+        <div class="form-group">
+          <label>Category *</label>
+          <select id="p-category"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="p-description" placeholder="Product description..."></textarea>
+      </div>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label>Price (₹) *</label>
+          <input type="number" id="p-price" placeholder="0.00" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label>Discount (%)</label>
+          <input type="number" id="p-discount" placeholder="0" min="0" max="100" />
+        </div>
+        <div class="form-group">
+          <label>Stock</label>
+          <input type="number" id="p-stock" placeholder="100" min="0" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Unit</label>
+          <input type="text" id="p-unit" placeholder="kg, piece, litre, dozen..." />
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:2px">
+          <label class="checkbox-group" style="cursor:pointer;font-size:14px;font-weight:600;color:var(--text);text-transform:none;letter-spacing:0">
+            <input type="checkbox" id="p-featured" style="width:16px;height:16px" /> Featured on home screen
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Image URLs (one per line)</label>
+        <textarea id="p-images" placeholder="https://images.unsplash.com/..." style="min-height:70px"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Variants <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(optional — label, price, discount%, stock)</span></label>
+        <div class="variants-list" id="variants-list"></div>
+        <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="addVariantRow()">+ Add Variant</button>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+        <button class="btn btn-ghost" onclick="closeModal('product-modal')">Cancel</button>
+        <button class="btn btn-primary" id="product-save-btn" onclick="saveProduct()">Save Product</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CATEGORY MODAL -->
+<div class="modal-overlay" id="category-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="cat-modal-title">Add Category</h3>
+      <button class="modal-close" onclick="closeModal('category-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="c-id" />
+      <div class="form-group"><label>Name *</label><input type="text" id="c-name" /></div>
+      <div class="form-group"><label>Description</label><input type="text" id="c-description" /></div>
+      <div class="form-group"><label>Image URL</label><input type="text" id="c-image" placeholder="https://..." /></div>
+      <div class="form-group"><label>Sort Order</label><input type="number" id="c-order" value="0" /></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+        <button class="btn btn-ghost" onclick="closeModal('category-modal')">Cancel</button>
+        <button class="btn btn-primary" id="cat-save-btn" onclick="saveCategory()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COUPON MODAL -->
+<div class="modal-overlay" id="coupon-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add Coupon</h3>
+      <button class="modal-close" onclick="closeModal('coupon-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Coupon Code *</label><input type="text" id="coup-code" placeholder="SAVE20" style="text-transform:uppercase" /></div>
+        <div class="form-group"><label>Discount %</label><input type="number" id="coup-discount" value="10" min="1" max="100" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Min Order (₹)</label><input type="number" id="coup-min" value="0" min="0" /></div>
+        <div class="form-group"><label>Max Discount (₹, 0 = unlimited)</label><input type="number" id="coup-max" value="0" min="0" /></div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+        <button class="btn btn-ghost" onclick="closeModal('coupon-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveCoupon()">Save Coupon</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+const API = '';   // same origin — FastAPI serves this file
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let token = localStorage.getItem('admin_token') || '';
+let allProducts = [], allCategories = [];
+
+// ─── BOOT ────────────────────────────────────────────────────────────────────
+window.onload = () => {
+  if (token) initApp();
+  else document.getElementById('auth-screen').style.display = 'flex';
+};
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn      = document.getElementById('login-btn');
+  const err      = document.getElementById('login-error');
+  if (!email || !password) { showLoginErr('Please enter email and password'); return; }
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  err.style.display = 'none';
+  try {
+    const res  = await fetch(`${API}/api/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Login failed');
+    if (data.user?.role !== 'admin') throw new Error('Not an admin account');
+    token = data.access_token;
+    localStorage.setItem('admin_token', token);
+    initApp();
+  } catch (e) {
+    showLoginErr(e.message);
+    btn.disabled = false; btn.textContent = 'Sign In';
+  }
+}
+function showLoginErr(msg) {
+  const e = document.getElementById('login-error');
+  e.textContent = msg; e.style.display = 'block';
+}
+function logout() {
+  localStorage.removeItem('admin_token');
+  token = '';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('login-password').value = '';
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+function initApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadDashboard();
+  loadCategories();
+  loadProducts();
+}
+
+// ─── API HELPER ──────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res  = await fetch(`${API}/api${path}`, opts);
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) { logout(); return null; }
+  if (!res.ok) throw new Error(data.detail || `Error ${res.status}`);
+  return data;
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast toast-${type} show`;
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────────────────────
+function showPage(name, navEl) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  navEl.classList.add('active');
+  if (name === 'orders')  loadOrders();
+  if (name === 'coupons') loadCoupons();
+  if (name === 'users')   loadUsers();
+}
+
+// ─── DASHBOARD ───────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const d = await api('GET', '/admin/dashboard');
+    if (!d) return;
+    document.getElementById('stat-orders').textContent   = d.total_orders;
+    document.getElementById('stat-products').textContent = d.total_products;
+    document.getElementById('stat-users').textContent    = d.total_users;
+    document.getElementById('stat-revenue').textContent  = '₹' + d.total_revenue.toLocaleString('en-IN');
+    document.getElementById('stat-pending').textContent  = d.pending_orders;
+  } catch {}
+}
+
+// ─── CATEGORIES ──────────────────────────────────────────────────────────────
+async function loadCategories() {
+  try {
+    const d = await api('GET', '/categories');
+    if (!d) return;
+    allCategories = d.categories || [];
+    renderCategories();
+    populateCategoryFilter();
+  } catch (e) {
+    document.getElementById('categories-tbody').innerHTML =
+      `<tr><td colspan="5" class="empty">Failed to load categories</td></tr>`;
+  }
+}
+
+function renderCategories() {
+  const tbody = document.getElementById('categories-tbody');
+  if (!allCategories.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">No categories yet</td></tr>'; return;
+  }
+  tbody.innerHTML = allCategories.map(c => `
+    <tr>
+      <td><img src="${c.image || 'https://via.placeholder.com/44'}" class="product-img" onerror="this.src='https://via.placeholder.com/44'" /></td>
+      <td><strong>${esc(c.name)}</strong></td>
+      <td style="color:var(--muted);font-size:12px">${esc(c.description || '—')}</td>
+      <td>${c.order ?? 0}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="openCategoryModal(${JSON.stringify(c).split('"').join('&quot;')})">Edit</button>
+        <button class="btn btn-danger btn-sm" style="margin-left:6px" onclick="deleteCategory('${c.category_id}','${esc(c.name)}')">Delete</button>
+      </td>
+    </tr>`).join('');
+}
+
+function populateCategoryFilter() {
+  const sel = document.getElementById('product-cat-filter');
+  const val = sel.value;
+  sel.innerHTML = '<option value="">All Categories</option>' +
+    allCategories.map(c => `<option value="${c.category_id}"${c.category_id===val?' selected':''}>${esc(c.name)}</option>`).join('');
+}
+
+function openCategoryModal(cat) {
+  document.getElementById('c-id').value          = cat ? cat.category_id : '';
+  document.getElementById('c-name').value        = cat ? cat.name : '';
+  document.getElementById('c-description').value = cat ? (cat.description || '') : '';
+  document.getElementById('c-image').value       = cat ? (cat.image || '') : '';
+  document.getElementById('c-order').value       = cat ? (cat.order ?? 0) : 0;
+  document.getElementById('cat-modal-title').textContent = cat ? 'Edit Category' : 'Add Category';
+  openModal('category-modal');
+}
+
+async function saveCategory() {
+  const id   = document.getElementById('c-id').value;
+  const name = document.getElementById('c-name').value.trim();
+  if (!name) { toast('Category name is required', 'error'); return; }
+  const body = {
+    name,
+    description: document.getElementById('c-description').value.trim(),
+    image: document.getElementById('c-image').value.trim(),
+    order: parseInt(document.getElementById('c-order').value) || 0,
+  };
+  const btn = document.getElementById('cat-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    if (id) await api('PUT', `/admin/categories/${id}`, body);
+    else    await api('POST', '/admin/categories', body);
+    toast(id ? 'Category updated' : 'Category created');
+    closeModal('category-modal');
+    await loadCategories();
+    await loadProducts();  // refresh category_name in products
+    loadDashboard();
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save';
+  }
+}
+
+async function deleteCategory(id, name) {
+  if (!confirm(`Delete category "${name}"? Products in this category will lose their category.`)) return;
+  try {
+    await api('DELETE', `/admin/categories/${id}`);
+    toast('Category deleted');
+    await loadCategories();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ─── PRODUCTS ────────────────────────────────────────────────────────────────
+async function loadProducts() {
+  try {
+    const d = await api('GET', '/products?limit=500');
+    if (!d) return;
+    allProducts = d.products || [];
+    renderProducts(allProducts);
+  } catch {
+    document.getElementById('products-tbody').innerHTML =
+      `<tr><td colspan="8" class="empty">Failed to load products</td></tr>`;
+  }
+}
+
+function filterProducts() {
+  const q   = document.getElementById('product-search').value.toLowerCase();
+  const cat = document.getElementById('product-cat-filter').value;
+  const filtered = allProducts.filter(p =>
+    (!q   || p.name.toLowerCase().includes(q) || (p.category_name||'').toLowerCase().includes(q)) &&
+    (!cat || p.category_id === cat)
+  );
+  renderProducts(filtered);
+}
+
+function renderProducts(products) {
+  const tbody = document.getElementById('products-tbody');
+  if (!products.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty">No products found</td></tr>'; return;
+  }
+  tbody.innerHTML = products.map(p => `
+    <tr>
+      <td><img src="${(p.images && p.images[0]) || 'https://via.placeholder.com/44'}" class="product-img" onerror="this.src='https://via.placeholder.com/44'" /></td>
+      <td><strong>${esc(p.name)}</strong><br/><span style="color:var(--muted);font-size:11px">${p.product_id}</span></td>
+      <td>${esc(p.category_name || '—')}</td>
+      <td>₹${p.price}</td>
+      <td>${p.discount ? `<span class="badge badge-green">${p.discount}%</span>` : '—'}</td>
+      <td>${p.stock ?? '—'}</td>
+      <td>${p.featured ? '⭐' : '—'}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick='openProductModal(${JSON.stringify(p)})'>Edit</button>
+        <button class="btn btn-danger btn-sm" style="margin-left:6px" onclick="deleteProduct('${p.product_id}','${esc(p.name)}')">Delete</button>
+      </td>
+    </tr>`).join('');
+}
+
+function openProductModal(prod) {
+  // Populate category dropdown first
+  const catSel = document.getElementById('p-category');
+  catSel.innerHTML = allCategories.map(c =>
+    `<option value="${c.category_id}"${prod && c.category_id === prod.category_id ? ' selected' : ''}>${esc(c.name)}</option>`
+  ).join('');
+
+  document.getElementById('p-id').value          = prod ? prod.product_id : '';
+  document.getElementById('p-name').value        = prod ? prod.name : '';
+  document.getElementById('p-description').value = prod ? (prod.description || '') : '';
+  document.getElementById('p-price').value       = prod ? prod.price : '';
+  document.getElementById('p-discount').value    = prod ? (prod.discount || 0) : 0;
+  document.getElementById('p-stock').value       = prod ? (prod.stock ?? 100) : 100;
+  document.getElementById('p-unit').value        = prod ? (prod.unit || 'piece') : 'piece';
+  document.getElementById('p-featured').checked  = prod ? !!prod.featured : false;
+  document.getElementById('p-images').value      = prod && prod.images ? prod.images.join('\n') : '';
+  document.getElementById('product-modal-title').textContent = prod ? 'Edit Product' : 'Add Product';
+
+  // Variants
+  const vList = document.getElementById('variants-list');
+  vList.innerHTML = '';
+  if (prod && prod.variants && prod.variants.length) {
+    prod.variants.forEach(v => addVariantRow(v));
+  }
+  openModal('product-modal');
+}
+
+function addVariantRow(v) {
+  const row = document.createElement('div');
+  row.className = 'variant-row';
+  row.innerHTML = `
+    <input type="text"   placeholder="Label (e.g. 500g)" value="${esc(v?.label||'')}" class="v-label" />
+    <input type="number" placeholder="Price"             value="${v?.price||''}"      class="v-price" min="0" step="0.01" />
+    <input type="number" placeholder="Discount %"        value="${v?.discount||0}"    class="v-discount" min="0" max="100" />
+    <input type="number" placeholder="Stock"             value="${v?.stock??100}"     class="v-stock" min="0" />
+    <button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:18px">×</button>
+  `;
+  document.getElementById('variants-list').appendChild(row);
+}
+
+function collectVariants() {
+  return Array.from(document.querySelectorAll('#variants-list .variant-row')).map(row => ({
+    label:    row.querySelector('.v-label').value.trim(),
+    price:    parseFloat(row.querySelector('.v-price').value) || 0,
+    discount: parseFloat(row.querySelector('.v-discount').value) || 0,
+    stock:    parseInt(row.querySelector('.v-stock').value) || 100,
+  })).filter(v => v.label);
+}
+
+async function saveProduct() {
+  const id   = document.getElementById('p-id').value;
+  const name = document.getElementById('p-name').value.trim();
+  const catId= document.getElementById('p-category').value;
+  const price= parseFloat(document.getElementById('p-price').value);
+  if (!name)   { toast('Product name is required', 'error'); return; }
+  if (!catId)  { toast('Please select a category', 'error'); return; }
+  if (!price)  { toast('Price is required', 'error'); return; }
+
+  const images = document.getElementById('p-images').value
+    .split('\n').map(s => s.trim()).filter(Boolean);
+
+  const body = {
+    name,
+    description: document.getElementById('p-description').value.trim(),
+    price,
+    discount: parseFloat(document.getElementById('p-discount').value) || 0,
+    category_id: catId,
+    stock: parseInt(document.getElementById('p-stock').value) || 100,
+    unit: document.getElementById('p-unit').value.trim() || 'piece',
+    featured: document.getElementById('p-featured').checked,
+    images,
+    variants: collectVariants(),
+  };
+
+  const btn = document.getElementById('product-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    if (id) await api('PUT', `/admin/products/${id}`, body);
+    else    await api('POST', '/admin/products', body);
+    toast(id ? 'Product updated' : 'Product created');
+    closeModal('product-modal');
+    await loadProducts();
+    loadDashboard();
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save Product';
+  }
+}
+
+async function deleteProduct(id, name) {
+  if (!confirm(`Delete product "${name}"? This cannot be undone.`)) return;
+  try {
+    await api('DELETE', `/admin/products/${id}`);
+    toast('Product deleted');
+    await loadProducts();
+    loadDashboard();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ─── ORDERS ──────────────────────────────────────────────────────────────────
+const STATUS_COLORS = {
+  pending: 'badge-yellow', confirmed: 'badge-blue',
+  shipped: 'badge-blue', delivered: 'badge-green',
+  cancelled: 'badge-red',
+};
+
+async function loadOrders() {
+  const status = document.getElementById('order-status-filter').value;
+  const tbody  = document.getElementById('orders-tbody');
+  tbody.innerHTML = '<tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr>';
+  try {
+    const d = await api('GET', `/admin/orders${status ? '?status=' + status : ''}`);
+    if (!d) return;
+    const orders = d.orders || [];
+    if (!orders.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No orders found</td></tr>'; return; }
+    tbody.innerHTML = orders.map(o => `
+      <tr>
+        <td><code style="font-size:11px">${o.order_id.slice(-8)}</code></td>
+        <td style="font-size:12px">${esc(o.user_id?.slice(-8) || '—')}</td>
+        <td>${(o.items || []).length} item(s)</td>
+        <td><strong>₹${o.total}</strong></td>
+        <td><span class="badge ${o.payment_status === 'paid' ? 'badge-green' : 'badge-gray'}">${o.payment_method || '—'} / ${o.payment_status || '—'}</span></td>
+        <td><span class="badge ${STATUS_COLORS[o.status] || 'badge-gray'}">${o.status}</span></td>
+        <td style="font-size:11px;color:var(--muted)">${new Date(o.created_at).toLocaleDateString('en-IN')}</td>
+        <td>
+          <select class="order-status-select" onchange="updateOrderStatus('${o.order_id}', this.value, this)">
+            ${['pending','confirmed','shipped','delivered','cancelled'].map(s =>
+              `<option${s===o.status?' selected':''}>${s}</option>`).join('')}
+          </select>
+        </td>
+      </tr>`).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="8" class="empty">${e.message}</td></tr>`;
+  }
+}
+
+async function updateOrderStatus(orderId, status, selectEl) {
+  try {
+    await api('PUT', `/admin/orders/${orderId}/status`, { status });
+    toast(`Order updated to "${status}"`);
+  } catch (e) {
+    toast(e.message, 'error');
+    loadOrders();
+  }
+}
+
+// ─── COUPONS ─────────────────────────────────────────────────────────────────
+async function loadCoupons() {
+  const tbody = document.getElementById('coupons-tbody');
+  try {
+    const d = await api('GET', '/coupons');
+    if (!d) return;
+    const coupons = d.coupons || [];
+    if (!coupons.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">No coupons yet</td></tr>'; return; }
+    tbody.innerHTML = coupons.map(c => `
+      <tr>
+        <td><strong style="font-family:monospace;font-size:15px">${esc(c.code)}</strong></td>
+        <td><span class="badge badge-green">${c.discount_percent}% off</span></td>
+        <td>${c.min_order ? '₹' + c.min_order : '—'}</td>
+        <td>${c.max_discount ? '₹' + c.max_discount : 'Unlimited'}</td>
+        <td><span class="badge ${c.active ? 'badge-green' : 'badge-red'}">${c.active ? 'Active' : 'Inactive'}</span></td>
+      </tr>`).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">${e.message}</td></tr>`;
+  }
+}
+
+function openCouponModal() { openModal('coupon-modal'); }
+
+async function saveCoupon() {
+  const code = document.getElementById('coup-code').value.trim().toUpperCase();
+  if (!code) { toast('Coupon code is required', 'error'); return; }
+  try {
+    await api('POST', '/admin/coupons', {
+      code,
+      discount_percent: parseFloat(document.getElementById('coup-discount').value) || 10,
+      min_order: parseFloat(document.getElementById('coup-min').value) || 0,
+      max_discount: parseFloat(document.getElementById('coup-max').value) || 0,
+      active: true,
+    });
+    toast('Coupon created');
+    closeModal('coupon-modal');
+    loadCoupons();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ─── USERS ───────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" class="loading-row"><div class="spinner"></div></td></tr>';
+  try {
+    const d = await api('GET', '/admin/users');
+    if (!d) return;
+    const users = d.users || [];
+    if (!users.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">No users found</td></tr>'; return; }
+    tbody.innerHTML = users.map(u => `
+      <tr>
+        <td><strong>${esc(u.name || '—')}</strong></td>
+        <td>${esc(u.email)}</td>
+        <td>${esc(u.phone || '—')}</td>
+        <td><span class="badge ${u.role==='admin'?'badge-red':'badge-blue'}">${u.role}</span></td>
+        <td style="font-size:12px;color:var(--muted)">${u.created_at ? new Date(u.created_at).toLocaleDateString('en-IN') : '—'}</td>
+      </tr>`).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">${e.message}</td></tr>`;
+  }
+}
+
+// ─── MODAL HELPERS ───────────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+// Close on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el =>
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); })
+);
+
+// ─── UTIL ────────────────────────────────────────────────────────────────────
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

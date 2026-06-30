@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI, APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
@@ -1070,6 +1071,12 @@ async def admin_update_order_status(order_id: str, data: StatusUpdate, request: 
     await create_notification(order["user_id"], f"Order {data.status.title()}", msg, "order", {"order_id": order_id})
     return {"message": "Order status updated"}
 
+@api_router.get("/admin/users")
+async def admin_get_users(request: Request):
+    await get_admin_user(request)
+    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(500)
+    return {"users": users}
+
 @api_router.get("/admin/dashboard")
 async def admin_dashboard(request: Request):
     await get_admin_user(request)
@@ -1234,6 +1241,11 @@ async def update_profile(data: ProfileUpdate, request: Request):
 
 # ===== INCLUDE ROUTER =====
 app.include_router(api_router)
+
+# ===== ADMIN PANEL (web dashboard) =====
+@app.get("/admin-panel", include_in_schema=False)
+async def serve_admin_panel():
+    return FileResponse("admin_panel.html")
 
 app.add_middleware(
     CORSMiddleware,
